@@ -58,4 +58,24 @@ trait OssClientTrait{
             return false;
         }
     }
+
+    /**
+     * Get Object Meta Data
+     * @param $bucket
+     * @param $key
+     * @param array $options
+     * @return bool
+     */
+    public function getObjectMeta($bucket, $key, array $options = []){
+        try {
+            return $this->headObject([
+                    'bucket' => $bucket,
+                    'key'    => $key,
+                    'method' => 'HEAD',
+                    'parameters'=>['objectMeta '=>'']
+                ] + $options);
+        } catch (OssException $e) {
+            throw $e;
+        }
+    }
 }

@@ -11,15 +11,7 @@ use OSS\Exception\OssException;
  *
  * @package OSS
  */
-class OssUtil
-{
-    const OSS_CONTENT = 'content';
-    const OSS_LENGTH = 'length';
-    const OSS_HEADERS = 'headers';
-    const OSS_MAX_OBJECT_GROUP_VALUE = 1000;
-    const OSS_MAX_PART_SIZE = 5368709120; // 5GB
-    const OSS_MID_PART_SIZE = 10485760; // 10MB
-    const OSS_MIN_PART_SIZE = 102400; // 100KB
+class OssUtil{
     /**
      * Checks if the bucket name is valid
      * bucket naming rules
@@ -76,49 +68,6 @@ class OssUtil
             return false;
         }
     }
-
-
-    /**
-     * Generate the xml message of createBucketXmlBody.
-     *
-     * @param string $storageClass
-     * @return string
-     */
-    public static function createBucketXmlBody($storageClass)
-    {
-        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><CreateBucketConfiguration></CreateBucketConfiguration>');
-        $xml->addChild('StorageClass',  $storageClass);
-        return $xml->asXML();
-    }
-
-    /**
-     * validate $options
-     *
-     * @param array $options
-     * @throws OssException
-     * @return boolean
-     */
-    public static function validateOptions($options)
-    {
-        //$options
-        if ($options != NULL && !is_array($options)) {
-            throw new OssException ($options . ':' . 'option must be array');
-        }
-    }
-
-    /**
-     * check whether the Content is valid.
-     *
-     * @param $content string
-     * @throws OssException
-     */
-    public static function validateContent($content)
-    {
-        if (empty($content)) {
-            throw new OssException("http body content is invalid");
-        }
-    }
-
 
     /**
      * Check if the endpoint is in the IPv4 format, such as xxx.xxx.xxx.xxx:port or xxx.xxx.xxx.xxx.
@@ -190,19 +139,49 @@ class OssUtil
     {
         $rootXml = array_key_first($data);
         $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><'. $rootXml . '></'. $rootXml .'>');
-        self::appendToXml($data[$rootXml],$xml);
+        $node = self::getXmlNode($rootXml);
+        self::appendToXml($data[$rootXml],$xml,$node);
         return $xml->asXML();
     }
 
-    public static function appendToXml($array,&$xml)
+
+    /**
+     * Append into Xml
+     * @param array $array
+     * @param \SimpleXMLElement $xml
+     * @param string $node
+     */
+    public static function appendToXml($array,&$xml,$node)
     {
         foreach ($array as $key => $value) {
             if (is_array($value)) {
-                if (!is_numeric($key)) {
-                    $subNode = $xml->addChild($key);
-                    self::appendToXml($value, $subNode);
+                if (in_array($key,$node)) {
+                    if (is_array($value[0])){
+                        foreach ($value as $subArray) {
+                            $subNode = $xml->addChild($key);
+                            self::appendToXml($subArray, $subNode,$node);
+                        }
+                    }else{
+                        if (isset($value[0])){
+                            foreach ($value as $val){
+                                $xml->addChild($key,$val);
+                            }
+                        }else{
+                            if (!is_numeric($key)){
+                                $subNode = $xml->addChild($key);
+                                self::appendToXml($value, $subNode,$node);
+                            }else{
+                                self::appendToXml($value, $xml,$node);
+                            }
+                        }
+                    }
                 } else {
-                    self::appendToXml($value, $xml);
+                    if (!is_numeric($key)){
+                        $subNode = $xml->addChild($key);
+                        self::appendToXml($value, $subNode,$node);
+                    }else{
+                        self::appendToXml($value, $xml,$node);
+                    }
                 }
             } else {
                 $xml->addChild($key, htmlspecialchars($value));
@@ -245,5 +224,22 @@ class OssUtil
             "regionList" => "",
             "cloudboxes" => "",
         );
+    }
+
+    public static function getXmlNode($key){
+        $xmlNodeArray = [
+            'LifecycleConfiguration'=> ['Rule','Transition'],
+            'ReplicationConfiguration' => ['Prefix'],
+            'InventoryConfiguration' => ['Field'],
+            'WebsiteConfiguration' => ['Pass','Remove'],
+            'RefererConfiguration' => ['Referer'],
+            'Tagging' => ['Tag'],
+            'CORSConfiguration'=>['CORSRule','AllowedOrigin','AllowedMethod','AllowedHeader','ExposeHeader'],
+            'MetaQuery' => ['Aggregation'],
+            'AntiDDOSConfiguration' => ['Domain'],
+            'TlsVersionConfiguration' => ['TLSVersion']
+        ];
+
+        return isset($xmlNodeArray[$key]) ? $xmlNodeArray[$key] : [];
     }
 }

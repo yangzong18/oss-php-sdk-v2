@@ -2,8 +2,6 @@
 
 namespace OSS\Signer;
 
-use DateTime;
-use DateTimeZone;
 use OSS\Utils\OssUtil;
 
 class SignerV1 implements Signer
@@ -12,7 +10,7 @@ class SignerV1 implements Signer
     {
         $request = $signingCtx->getRequest();
         $cred = $signingCtx->getCredentials();
-        $date = (new DateTime('now', new DateTimeZone('UTC')))->format(DateTime::RFC7231);
+        $date = gmdate('D, d M Y H:i:s \G\M\T');
         $request = $request->withHeader(self::DATE_HEADER,$date);
         if ($cred->getSecurityToken() != "") {
             $request = $request->withHeader(self::SECURITY_TOKEN_HEADER,$cred->getSecurityToken());

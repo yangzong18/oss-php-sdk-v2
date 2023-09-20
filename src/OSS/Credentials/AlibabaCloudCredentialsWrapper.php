@@ -1,6 +1,5 @@
 <?php
 namespace OSS\Credentials;
-use OSS\Credentials\Credentials;
 
 /**
  * Class AlibabaCloudCredentialsWrapper

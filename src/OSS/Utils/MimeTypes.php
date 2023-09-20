@@ -20,7 +20,11 @@ class MimeTypes
      */
     public static function getMimetype($name)
     {
-        $parts = explode('.', $name);
+        if ($name !== null) {
+            $parts = explode('.', $name);
+        } else {
+            $parts = [];
+        }
         if (count($parts) > 1) {
             $ext = strtolower(end($parts));
             if (isset(self::$mime_types[$ext])) {

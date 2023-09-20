@@ -78,7 +78,7 @@ try {
 
 try {
     $headers = ['x-oss-acl'=> 'public-read','x-oss-version-id'=>'CAEQFxiBgICq_riyuRgiIGVkY2FmMGEx****'];
-    $result = $ossClient->putObjectAcl(array('bucket'=>$bucketName,'key'=>$key,'method'=>'get','VersionId'=>'CAEQFxiBgICq_riyuRgiIGVkY2FmMGEx****','headers'=>$headers,'parameters'=>['acl'=>'']));
+    $result = $ossClient->putObjectAcl(array('bucket'=>$bucketName,'key'=>$key,'method'=>'get','headers'=>$headers,'parameters'=>['acl'=>'']));
     print_r($result);
 }catch (OssException $e){
     printf($e->getMessage());

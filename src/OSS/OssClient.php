@@ -103,6 +103,8 @@ use Psr\Http\Message\ResponseInterface;
  * @method \GuzzleHttp\Promise\Promise deleteObjectTaggingAsync(array $args = [])
  * @method \OSS\Result deleteObjects(array $args = [])
  * @method \GuzzleHttp\Promise\Promise deleteObjectsAsync(array $args = [])
+ * @method \OSS\Result describeRegions(array $args = [])
+ * @method \GuzzleHttp\Promise\Promise describeRegionsAsync(array $args = [])
  * @method \OSS\Result getBucketInfo(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getBucketInfoAsync(array $args = [])
  * @method \OSS\Result getBucketLocation(array $args = [])
@@ -155,12 +157,16 @@ use Psr\Http\Message\ResponseInterface;
  * @method \GuzzleHttp\Promise\Promise getBucketRefererAsync(array $args = [])
  * @method \OSS\Result getAccessPointPolicy(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getAccessPointPolicyAsync(array $args = [])
+ * @method \OSS\Result getArchiveDirectRead(array $args = [])
+ * @method \GuzzleHttp\Promise\Promise getArchiveDirectReadAsync(array $args = [])
  * @method \OSS\Result getMetaQueryStatus(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getMetaQueryStatusAsync(array $args = [])
  * @method \OSS\Result getUserAntiDDosInfo(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getUserAntiDDosInfoAsync(array $args = [])
  * @method \OSS\Result getStyle(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getStyleAsync(array $args = [])
+ * @method \OSS\Result getTlsVersion(array $args = [])
+ * @method \GuzzleHttp\Promise\Promise getTlsVersionAsync(array $args = [])
  * @method \OSS\Result getSymlink(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getSymlinkAsync(array $args = [])
  * @method \OSS\Result getLiveChannelInfo(array $args = [])
@@ -173,8 +179,6 @@ use Psr\Http\Message\ResponseInterface;
  * @method \GuzzleHttp\Promise\Promise getVodPlaylistAsync(array $args = [])
  * @method \OSS\Result getObject(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getObjectAsync(array $args = [])
- * @method \OSS\Result getObjectMeta(array $args = [])
- * @method \GuzzleHttp\Promise\Promise getObjectMetaAsync(array $args = [])
  * @method \OSS\Result getObjectAcl(array $args = [])
  * @method \GuzzleHttp\Promise\Promise getObjectAclAsync(array $args = [])
  * @method \OSS\Result getObjectAttributes(array $args = [])
@@ -255,10 +259,14 @@ use Psr\Http\Message\ResponseInterface;
  * @method \GuzzleHttp\Promise\Promise putBucketWebsiteAsync(array $args = [])
  * @method \OSS\Result putAccessPointPolicy(array $args = [])
  * @method \GuzzleHttp\Promise\Promise putAccessPointPolicyAsync(array $args = [])
+ * @method \OSS\Result putArchiveDirectRead(array $args = [])
+ * @method \GuzzleHttp\Promise\Promise putArchiveDirectReadAsync(array $args = [])
  * @method \OSS\Result putCname(array $args = [])
  * @method \GuzzleHttp\Promise\Promise putCnameAsync(array $args = [])
  * @method \OSS\Result putStyle(array $args = [])
  * @method \GuzzleHttp\Promise\Promise putStyleAsync(array $args = [])
+ * @method \OSS\Result putTlsVersion(array $args = [])
+ * @method \GuzzleHttp\Promise\Promise putTlsVersionAsync(array $args = [])
  * @method \OSS\Result putSymlink(array $args = [])
  * @method \GuzzleHttp\Promise\Promise putSymlinkAsync(array $args = [])
  * @method \OSS\Result putLiveChannel(array $args = [])
@@ -426,9 +434,6 @@ class OssClient
                     'timeout' => $this->timeout,
                     'read_timeout' => $this->readTimeout,
                     'connect_timeout' => $this->connectTimeout,
-                    'allow_redirects' => false,
-                    'verify' => $this->useSSL,
-                    'expect' => false,
                 ]
             );
         }
@@ -436,21 +441,20 @@ class OssClient
     }
 
     /**
-     * @param $name
-     * @param $options
+     * @param string $name
+     * @param array $options
      * @return PromiseInterface|Result
      * @throws GuzzleException
      */
     public function __call($name,$options){
         try {
             $options = isset($options[0]) ? $options[0] : [];
-            if (empty($options['method'])){
-                throw new OssException('method must be a non-empty string.');
-            }
+            $this->checkOptions($options);
+            $method = isset($options['method']) ? $options['method'] : null;
+            $this->checkMethod($method);
             $operationName = $name;
             $bucket = isset($options['bucket']) ? $options['bucket'] : null;
             $key = isset($options['key']) ? $options['key'] : null;
-            $method = $options['method'];
             $headers = isset($options['headers']) ? $options['headers'] : null;
             $parameters = isset($options['parameters']) ? $options['parameters'] : null;
             $body = isset($options['body']) ? $options['body'] : null;
@@ -491,6 +495,8 @@ class OssClient
      */
     public function sendRequest(OperationInput $input)
     {
+        $cred = $this->provider->getCredentials();
+        $this->checkCredentials($cred);
         // host & path
         $hostName = $this->generateHostname($input->getBucket());
         $resource_uri = $this->generateResourceUri($input);
@@ -502,30 +508,36 @@ class OssClient
             $strUrl .= "?" . $query;
         }
         $request = new Request($input->getMethod(), $strUrl);
-        // headers
-        if ($input->getHeaders() != null){
-            foreach ($input->getHeaders() as $k => $v) {
-                if (!empty($k) && !empty($v)) {
-                    $request = $request->withHeader($k, $v);
-                }
-            }
-        }
         $body = Utils::streamFor($input->getBody());
         $len = $body->getSize();
         if ($len >= 0 && !$request->hasHeader(self::OSS_CONTENT_LENGTH)) {
             $request = $request->withHeader(self::OSS_CONTENT_LENGTH, $len);
         }
+        $request = $request->withBody($body);
+        // headers
+        if ($input->getHeaders() != null){
+            foreach ($input->getHeaders() as $k => $v) {
+                if (!empty($k) && !empty($v)) {
+                    if (strtolower($k) == 'content-md5'){
+                        if ($v === true){
+                            $md5 = base64_encode(md5($body, true));
+                            $request = $request->withHeader(Signer::CONTENT_MD5_HEADER, $md5);
+                        }
+                    }else{
+                        $request = $request->withHeader($k, $v);
+                    }
+                }
+            }
+        }
         if (!$request->hasHeader(self::OSS_CONTENT_TYPE)){
             $request = $request->withHeader(self::OSS_CONTENT_TYPE, $this->getMimeType($input->getKey()));
         }
-        $request = $request->withBody($body);
         // signing context
         $meta = $input->getMetadata();
         $subResource = null;
         if (isset($meta)){
             $subResource = isset($meta[Signer::SUB_RESOURCE]) ? $meta[Signer::SUB_RESOURCE] : null;
         }
-        $cred = $this->provider->getCredentials();
         $signingCtx = new SigningContext("oss",$this->region,$input->getBucket(),$input->getKey(),$request,$subResource,$cred);
         $signingCtx = $this->signer->sign($signingCtx);
         $method = $input->getOperationName();
@@ -540,7 +552,6 @@ class OssClient
             return $this->responseToResultTransformer($request,$response,$input);
         }
     }
-
 
     /**
      * @param RequestInterface $request
@@ -705,6 +716,55 @@ class OssClient
         }
     }
 
+    /**
+     * @param $credential
+     * @throws OssException
+     */
+    private function checkCredentials($credential)
+    {
+        if (empty($credential)) {
+            throw new OssException("credentials is empty.");
+        }
+        if (empty($credential->getAccessKeyId())) {
+            throw new OssException("access key id is empty");
+        }
+        if (empty($credential->getAccessKeySecret())) {
+            throw new OssException("access key secret is empty");
+        }
+    }
 
+    /**
+     * Check Options Function
+     * @param array $options
+     * @throws OssException
+     */
+    private function checkOptions($options)
+    {
+        if (!is_array($options)){
+            throw new OssException('params must be a non-empty array.');
+        }
+        $keyArray = ['bucket','key','method','headers','parameters','metadata','body'];
+        foreach ($options as $key => $val){
+            if (!in_array($key,$keyArray)){
+                throw new OssException('the key value of params only support bucket,key,method,headers,parameters,metadata,body.');
+            }
+        }
+    }
+
+    /**
+     * Check Method Function
+     * @param $method
+     * @throws OssException
+     */
+    private function checkMethod($method)
+    {
+        if (empty($method)){
+            throw new OssException('method must be a non-empty string.');
+        }
+        $methodArray = ['get','head','options','post','put','delete'];
+        if (!in_array(strtolower($method),$methodArray)){
+            throw new OssException('method only support get,head,options,post,put,delete.');
+        }
+    }
     public function __destruct(){}
 }
