@@ -2,7 +2,9 @@
 
 namespace OSS;
 
+use GuzzleHttp\Promise\Promise;
 use OSS\Exception\OssException;
+use OSS\Utils\OssUtil;
 
 /**
  * Trait OssClientTrait
@@ -72,10 +74,49 @@ trait OssClientTrait{
                     'bucket' => $bucket,
                     'key'    => $key,
                     'method' => 'HEAD',
-                    'parameters'=>['objectMeta '=>'']
+                    'parameters'=>['objectMeta'=>'']
                 ] + $options);
         } catch (OssException $e) {
             throw $e;
         }
+    }
+
+    /**
+     * List Objects V2
+     * @param array $args
+     * @return Result
+     */
+    public function listObjectsV2(array $args = [])
+    {
+        return $this->listObjects(array_replace_recursive([
+            'method' => 'get',
+            'parameters'=>['list-type'=>2]
+        ], $args));
+    }
+
+    /**
+     * List Objects V2 Async
+     * @param array $args
+     * @return Promise
+     */
+    public function listObjectsV2Async(array $args = [])
+    {
+        return $this->listObjectsAsync(array_replace_recursive([
+            'method' => 'get',
+            'parameters'=>['list-type'=>2]
+        ], $args));
+    }
+
+
+    /**
+     * Result Paginator
+     * @param $name
+     * @param array $args
+     * @return ResultPaginator
+     */
+    public function getPaginator($name, array $args = [])
+    {
+        $config = OssUtil::getPaginatorConfig($name);
+        return new ResultPaginator($this, $name, $args, $config);
     }
 }

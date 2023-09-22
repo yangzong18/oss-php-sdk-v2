@@ -13,10 +13,11 @@ class AlibabaCloudCredentialsWrapper implements CredentialsProvider{
     public function __construct($wrapper){
         $this->wrapper = $wrapper;
     }
+
+    /**
+     * @return Credentials
+     */
     public function getCredentials(){
-        $ak = $this->wrapper->getAccessKeyId();
-        $sk = $this->wrapper->getAccessKeySecret();
-        $token = $this->wrapper->getSecurityToken();
-        return new StaticCredentialsProvider($ak, $sk, $token);
+        return  $this->wrapper;
     }
 }

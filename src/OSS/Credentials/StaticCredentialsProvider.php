@@ -12,6 +12,7 @@ class StaticCredentialsProvider implements CredentialsProvider
      * @var Credentials
      */
     private $credentials;
+
     /**
      * Constructs a new StaticCredentialsProvider object, with the specified OSS
      * access key and OSS secret key

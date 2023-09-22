@@ -10,6 +10,7 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Utils;
+use OSS\Credentials\Credentials;
 use OSS\Utils\MimeTypes;
 use OSS\Utils\OssUtil;
 use OSS\Credentials\CredentialsProvider;
@@ -215,8 +216,6 @@ use Psr\Http\Message\ResponseInterface;
  * @method \GuzzleHttp\Promise\Promise listObjectVersionsAsync(array $args = [])
  * @method \OSS\Result listObjects(array $args = [])
  * @method \GuzzleHttp\Promise\Promise listObjectsAsync(array $args = [])
- * @method \OSS\Result listObjectsV2(array $args = [])
- * @method \GuzzleHttp\Promise\Promise listObjectsV2Async(array $args = [])
  * @method \OSS\Result listParts(array $args = [])
  * @method \GuzzleHttp\Promise\Promise listPartsAsync(array $args = [])
  * @method \OSS\Result listAccessPoints(array $args = [])
@@ -717,7 +716,7 @@ class OssClient
     }
 
     /**
-     * @param $credential
+     * @param Credentials $credential
      * @throws OssException
      */
     private function checkCredentials($credential)
@@ -741,6 +740,7 @@ class OssClient
     private function checkOptions($options)
     {
         if (!is_array($options)){
+            var_dump(1111);
             throw new OssException('params must be a non-empty array.');
         }
         $keyArray = ['bucket','key','method','headers','parameters','metadata','body'];

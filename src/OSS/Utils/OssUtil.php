@@ -242,4 +242,89 @@ class OssUtil{
 
         return isset($xmlNodeArray[$key]) ? $xmlNodeArray[$key] : [];
     }
+
+
+    public static function getInterfaceKey($key){
+        $keyArray = [
+            'listBuckets' => [['Buckets','Bucket']],
+            'listMultipartUploads' => [['Upload']],
+            'listObjectVersions' =>[['Version']],
+            'listObjects'=> [['Contents']],
+            'listObjectsV2'=> [['Contents']],
+            'listParts' => [['Part']],
+        ];
+        return isset($keyArray[$key]) ? $keyArray[$key] : [];
+    }
+
+
+    /**
+     * Paginator Config
+     * @param string $name
+     * @return mixed
+     */
+    public static function getPaginatorConfig($name){
+        $config = [
+            'listBuckets' => ['input_token'=>'marker','limit_key'=>'max-keys','more_results'=>'IsTruncated','output_token'=>'NextMarker','result_key'=>'Bucket'],
+            'listMultipartUploads' => ['input_token'=>['key-marker','upload-id-marker'],'limit_key'=>'max-uploads','more_results'=>'IsTruncated','output_token'=>['NextKeyMarker','NextUploadIdMarker'],'result_key'=>'Upload'],
+            'listObjectVersions' =>['input_token'=>['key-marker','version-id-marker'],'limit_key'=>'max-keys','more_results'=>'IsTruncated','output_token'=>['NextKeyMarker','NextVersionIdMarker'],'result_key'=>'Version'],
+            'listObjects'=> ['input_token'=>'marker','limit_key'=>'max-keys','more_results'=>'IsTruncated','output_token'=>'NextMarker','result_key'=>'Contents'],
+            'listObjectsV2'=> ['input_token'=>'continuation-token','limit_key'=>'max-keys','more_results'=>'IsTruncated','output_token'=>'NextContinuationToken','result_key'=>'Contents'],
+            'listParts' => ['input_token'=>'part-number-marker','limit_key'=>'max-parts','more_results'=>'IsTruncated','output_token'=>'NextPartNumberMarker','result_key'=>'Part'],
+
+        ];
+        if (isset($config[$name])){
+            return $config[$name];
+        }else{
+            throw new OssException('Paging config does not exist.');
+        }
+    }
+
+    /**
+     * Applies a map function $f to each value in a collection.
+     * @param $iterable
+     * @param callable $f
+     * @return \Generator
+     */
+    public static function map($iterable, callable $f)
+    {
+        foreach ($iterable as $value) {
+            yield $f($value);
+        }
+    }
+
+    /**
+     * Creates a generator that iterates over a sequence, then iterates over each
+     * value in the sequence and yields the application of the map function to each
+     * value.
+     * @param $iterable
+     * @param callable $f
+     * @return \Generator
+     */
+    public static function flatmap($iterable, callable $f)
+    {
+        foreach (self::map($iterable,$f) as $outer) {
+            foreach ($outer as $inner) {
+                yield $inner;
+            }
+        }
+    }
+
+    /**
+     * Replace Array
+     * @param array $array
+     * @param array $keys
+     */
+    public static function replaceBodyArray(&$array, $keys) {
+        $result =&$array;
+        $fool = false;
+        foreach ($keys as $key) {
+            if (isset($result[$key]) && is_array($result[$key])) {
+                $fool = true;
+                $result = &$result[$key];
+            }
+        }
+        if (!is_numeric(array_key_first($result)) && $fool){
+            $result = array(0 => $result);
+        }
+    }
 }

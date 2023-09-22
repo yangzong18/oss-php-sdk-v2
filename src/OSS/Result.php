@@ -1,6 +1,6 @@
 <?php
 namespace OSS;
-
+use JmesPath\Env as JmesPath;
 /**
  * Class Result
  * @package OSS
@@ -23,8 +23,6 @@ class Result implements ResultInterface
     {
         return $this[$key];
     }
-
-    public function search($expression){}
 
     public function __toString()
     {
