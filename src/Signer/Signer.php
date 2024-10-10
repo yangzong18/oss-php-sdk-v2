@@ -1,6 +1,8 @@
 <?php
 
-namespace OSS\Signer;
+declare(strict_types=1);
+
+namespace AlibabaCloud\Oss\V2\Signer;
 
 interface Signer
 {

@@ -2,16 +2,14 @@
 namespace OSS\Credentials;
 
 /**
- * Class EnvironmentVariableCredentialsProvider
- * @package OSS\Credentials
+*Obtaining credentials from environment variables.
+*OSS_ACCESS_KEY_ID
+*OSS_ACCESS_KEY_SECRET
+*OSS_SESSION_TOKEN (Optional)
  */
 class EnvironmentVariableCredentialsProvider implements CredentialsProvider
 {
-
-    /**
-     * @return Credentials
-     */
-    public function getCredentials()
+    public function getCredentials(): Credentials
     {
         $ak = getenv('OSS_ACCESS_KEY_ID');
         $sk = getenv('OSS_ACCESS_KEY_SECRET');
