@@ -11,9 +11,12 @@ class XmlElement implements AnnotationInterface
 
     public string $type;
 
-    public function __construct(string $rename, string $type)
+    public ?string $format;
+
+    public function __construct(string $rename, string $type, ?string $format = null)
     {
         $this->rename = $rename;
         $this->type = $type;
+        $this->format = $format;
     }
 }

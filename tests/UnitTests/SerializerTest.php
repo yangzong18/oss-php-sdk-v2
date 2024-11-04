@@ -1,4 +1,5 @@
 <?php
+
 namespace UnitTests\Types;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'BaiscTypeXml.php';
@@ -6,19 +7,22 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'MixedTypeXml.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'MixedTypeListXml.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'BaiscTypeLackAnnotationXml.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'DatetimeTypeXml.php';
 
 
 use AlibabaCloud\Oss\V2\Serializer;
+use DateTime;
 use UnitTests\Fixtures\BaiscTypeXml;
 use UnitTests\Fixtures\BaiscTypeListXml;
 use UnitTests\Fixtures\MixedTypeXml;
 use UnitTests\Fixtures\MixedTypeListXml;
 use UnitTests\Fixtures\BaiscTypeLackAnnotationXml;
+use UnitTests\Fixtures\DatetimeTypeXml;
 
 
 class SerializerTest extends \PHPUnit\Framework\TestCase
 {
-    public function testSerializeBaiscTypeXml() 
+    public function testSerializeBaiscTypeXml()
     {
         // empty 
         $obj = new BaiscTypeXml();
@@ -73,11 +77,11 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(2, $xml->count());
         $this->assertEquals('str-123', $xml->StrValue);
         $this->assertFalse(isset($xml->IntValue));
-        $this->assertEquals('false', $xml->BoolValue);        
+        $this->assertEquals('false', $xml->BoolValue);
         $this->assertFalse(isset($xml->FloatValue));
     }
 
-    public function testSerializeBaiscTypeListXml() 
+    public function testSerializeBaiscTypeListXml()
     {
         // empty
         $obj = new BaiscTypeListXml();
@@ -86,7 +90,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
 
         // all
         $obj = new BaiscTypeListXml(
-            strValues: ['str1','str2'],
+            strValues: ['str1', 'str2'],
             intValues: [1234, 2234],
             boolValues: [true, true, false],
             floatValues: [3.14],
@@ -109,7 +113,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('3.14', $xml->FloatValue[0]);
     }
 
-    public function testSerializeMixedTypeXml() 
+    public function testSerializeMixedTypeXml()
     {
         // empty
         $obj = new MixedTypeXml();
@@ -126,8 +130,8 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
                 boolValue: true,
                 floatValue: 1.14,
             ),
-            xmlListValue:new BaiscTypeListXml(
-                strValues: ['str1','str2'],
+            xmlListValue: new BaiscTypeListXml(
+                strValues: ['str1', 'str2'],
                 intValues: [1234, 2234],
                 boolValues: [true, true, false],
                 floatValues: [3.14],
@@ -159,10 +163,10 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('true', $xml->BasicTypeListFiled->BoolValue[1]);
         $this->assertEquals('false', $xml->BasicTypeListFiled->BoolValue[2]);
         $this->assertEquals(1, ($xml->BasicTypeListFiled->FloatValue)->count());
-        $this->assertEquals('3.14', $xml->BasicTypeListFiled->FloatValue[0]);        
+        $this->assertEquals('3.14', $xml->BasicTypeListFiled->FloatValue[0]);
     }
 
-    public function testSerializeMixedTypeListXml() 
+    public function testSerializeMixedTypeListXml()
     {
         // empty
         $obj = new MixedTypeListXml();
@@ -207,7 +211,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse(isset($xml->BasicTypeFiled[1]->FloatValue));
     }
 
-    public function testSerializeWithSpecialRootName() 
+    public function testSerializeWithSpecialRootName()
     {
         $obj = new BaiscTypeXml();
         $str = Serializer::serializeXml($obj);
@@ -221,7 +225,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertStringContainsString('<MyRoot/>', $str);
     }
 
-    public function testSerializeLackXmlAnnotation() 
+    public function testSerializeLackXmlAnnotation()
     {
         //xml root
         $obj = new BaiscTypeLackAnnotationXml();
@@ -251,4 +255,35 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse(isset($xml->FloatValue));
     }
 
+    public function testSerializeDateTimeTypeXml()
+    {
+        //xml root
+        $obj = new DatetimeTypeXml();
+        $str = Serializer::serializeXml($obj);
+        $this->assertNotEmpty($str);
+        $this->assertStringContainsString('<DatetimeType/>', $str);
+
+        $date = new \DateTime();
+        $date->setTimestamp(1702783809);
+
+        $date1 = new \DateTimeImmutable();
+        $date1 = $date1->setTimestamp(1702783819);
+
+        //xml element
+        $obj = new DatetimeTypeXml(
+            isotimeValue: $date,
+            dateTimeImmutableValue: $date1,
+            httptimeValue: $date,
+            unixtimeValue: $date,
+        );
+
+        $str = Serializer::serializeXml($obj);
+        $this->assertNotEmpty($str);
+        $xml = \simplexml_load_string($str);
+        $this->assertEquals(4, $xml->count());
+        $this->assertEquals('2023-12-17T03:30:09Z', $xml->DateTimeValue);
+        $this->assertEquals('2023-12-17T03:30:19Z', $xml->DateTimeImmutableValue);
+        $this->assertEquals('1702783809', $xml->UnixtimeValue);
+        $this->assertEquals('Sun, 17 Dec 2023 03:30:09 GMT', $xml->HttptimeValue);
+    }
 }

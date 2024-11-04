@@ -19,18 +19,37 @@ final class Serializer
         return $writer->flush();
     }
 
-    private static function serializeXmlAny(\XMLWriter $writer, string $name, mixed $value)
+    private static function serializeXmlAny(\XMLWriter $writer, string $name, mixed $value, ?string $format)
     {
         if ($value instanceof Model) {
-            return self::serializeXmlModel($writer, $name, $value);
+            self::serializeXmlModel($writer, $name, $value);
+            return;
         }
 
-        // time format
+        if ($value instanceof \DateTimeInterface) {
+            $stamp = $value->getTimestamp();
+            if ($format == null) {
+                $format = 'iso8601';
+            }
+            switch($format) {
+            case 'httptime':
+                $tval = gmdate('D, d M Y H:i:s \G\M\T', $stamp);
+                break;
+            case 'unixtime':
+                $tval = (string)$stamp;
+                break;
+            default:
+                $tval = gmdate('Y-m-d\TH:i:s\Z', $stamp);
+            }
+            $writer->startElement($name);
+            $writer->text($tval);
+            $writer->endElement();
+            return;
+        }
 
-        // enum
+        $type = \gettype($value);
 
         // bool
-        $type = \gettype($value);
         if (in_array(needle: $type, haystack: ['bool', 'boolean'])) {
             $writer->startElement($name);
             $writer->text($value === true ? 'true': 'false');
@@ -45,6 +64,10 @@ final class Serializer
             $writer->endElement();
             return;
         }
+
+
+        // enum, since 8.1
+        // TODO
 
         throw new \Exception("Serialization Error, Unsupport type " . gettype($value));
     }
@@ -83,10 +106,10 @@ final class Serializer
 
             if (is_array($val)) {
                 foreach($val as $vval) {
-                    self::serializeXmlAny($writer, $annotation->rename, $vval);
+                    self::serializeXmlAny($writer, $annotation->rename, $vval, $annotation->format);
                 }
             } else {
-                self::serializeXmlAny($writer, $annotation->rename, $val);
+                self::serializeXmlAny($writer, $annotation->rename, $val, $annotation->format);
             }
         }
 
