@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AlibabaCloud\Oss\V2\Signer;
 
-use OSS\Credentials\Credentials;
+use AlibabaCloud\Oss\V2\Credentials\Credentials;
 use Psr\Http\Message\RequestInterface;
 
 class SigningContext

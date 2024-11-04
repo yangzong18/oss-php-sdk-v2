@@ -1,5 +1,5 @@
 <?php
-namespace OSS\Credentials;
+namespace AlibabaCloud\Oss\V2\Credentials;
 
 /**
 *Obtaining credentials from environment variables.

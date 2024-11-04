@@ -12,22 +12,22 @@ final class Credentials
     /**
      * @var string The access key id of the credentials.
      */
-    private $accessKeyId;
+    private string $accessKeyId;
 
     /**
      * @var string The access key secret of the credentials.
      */
-    private $accessKeySecret;
+    private string $accessKeySecret;
 
     /**
      * @var string|null The security token of the credentials.    
      */
-    private $securityToken;
+    private ?string $securityToken;
 
     /**
      * @var \DateTimeImmutable|null The token's expiration time in utc.
      */
-    private $expiration;
+    private ?\DateTimeImmutable $expiration;
 
     public function __construct(
         string $accessKeyId,

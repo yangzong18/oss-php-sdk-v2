@@ -1,5 +1,5 @@
 <?php
-namespace OSS\Credentials;
+namespace AlibabaCloud\Oss\V2\Credentials;
 
 /**
  * Basic implementation of the OSS Credentials interface that allows callers to
@@ -11,7 +11,7 @@ class StaticCredentialsProvider implements CredentialsProvider
     /**
      * @var Credentials
      */
-    private $credentials;
+    private Credentials $credentials;
 
     /**
      * Constructs a new StaticCredentialsProvider object, with the specified OSS
@@ -26,10 +26,7 @@ class StaticCredentialsProvider implements CredentialsProvider
         $this->credentials = new Credentials($key, $secret, $token);
     }
 
-    /**
-     * @return Credentials
-     */
-    public function getCredentials()
+    public function getCredentials(): Credentials
     {
         return $this->credentials;
     }
