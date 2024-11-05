@@ -1,14 +1,17 @@
 <?php
+
 namespace UnitTests\Types;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'ModelA.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'XmlModelA.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'ModelPrivate.php';
 
-use AlibabaCloud\Oss\V2\Annotation\XmlRoot;
+
+
 
 class ModelTest extends \PHPUnit\Framework\TestCase
 {
-    public function testModelBaisc() 
+    public function testModelBaisc()
     {
         $m = new ModelA();
         $this->assertNull($m->strValue);
@@ -82,47 +85,26 @@ class ModelTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(2.2, $m->getFloatValue());
     }
 
-    public function testModelWithXmlTag()
+    public function testModelTrait()
     {
-        $m = new XmlModelA(
+        #set from construct
+        $m = new ModelPrivate(
             strValue: "str",
             intValue: 1234,
             boolValue: true,
-            floatValue: 3.14
+            floatValue:3.14,
         );
-        $this->assertEquals("str", $m->strValue);
-        $this->assertEquals(1234, $m->intValue);
-        $this->assertEquals(true, $m->boolValue);
-        $this->assertEquals(3.14, $m->floatValue);
 
         $this->assertEquals("str", $m->getStrValue());
         $this->assertEquals(1234, $m->getIntValue());
         $this->assertEquals(true, $m->getBoolValue());
         $this->assertEquals(3.14, $m->getFloatValue());
 
-        $rc = new \ReflectionObject($m);
-        foreach($rc->getAttributes() as $attribute) {
-            #print $attribute;
-        }
+        $m->setStrValue('str-new')->setBoolValue(false)->setIntValue(321)->setFloatValue(1.12);
 
-        #$annotations= $rc->getAttributes(XmlRoot::class, \ReflectionAttribute::IS_INSTANCEOF);
-        $insts = array_map(
-            static fn (\ReflectionAttribute $attribute): object => $attribute->newInstance(),
-            $rc->getAttributes(XmlRoot::class, \ReflectionAttribute::IS_INSTANCEOF),
-        );
-
-        var_dump($insts[0]);
-
-        print $insts[0]->name;
-
-        #var_dump($rc->getAttributes()[0]);
-        #foreach($rc->getProperties() as $property) {
-        #    print $property->getAttributes()[0];
-        #}
-
-        #foreach($rc->getAttributes() as $attribute) {
-        #    print $attribute->;
-        #}        
-    } 
-
+        $this->assertEquals("str-new", $m->getStrValue());
+        $this->assertEquals(321, $m->getIntValue());
+        $this->assertEquals(false, $m->getBoolValue());
+        $this->assertEquals(1.12, $m->getFloatValue());
+    }
 }

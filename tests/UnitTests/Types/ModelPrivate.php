@@ -5,16 +5,27 @@ namespace UnitTests\Types;
 use AlibabaCloud\Oss\V2\Types\Model;
 use AlibabaCloud\Oss\V2\Types\ModelTrait;
 
-class ModelA extends Model
+/**
+ * 
+ * @method static setStrValue(string $arg)
+ * @method ?string getStrValue()
+ * @method static setIntValue(int $arg)
+ * @method ?int getIntValue()
+ * @method static setBoolValue(bool $arg)
+ * @method ?bool getBoolValue()
+ * @method static setFloatValue(float $arg)
+ * @method ?float getFloatValue()
+ */
+class ModelPrivate extends Model
 {
     use ModelTrait;
-    public ?string $strValue;
+    private ?string $strValue;
 
-    public ?int $intValue;
+    private ?int $intValue;
 
-    public ?bool $boolValue;
+    private ?bool $boolValue;
 
-    public ?float $floatValue;
+    private ?float $floatValue;
 
     public function __construct(
         ?string $strValue = null,
