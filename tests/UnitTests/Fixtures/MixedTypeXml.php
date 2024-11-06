@@ -17,11 +17,11 @@ class MixedTypeXml  extends Model
     #[XmlElement(rename:'IntValue', type: 'int')]
     public ?int $intValue;
 
-    #[XmlElement(rename:'BasicTypeFiled', type: 'BaiscTypeXml')]
+    #[XmlElement(rename:'BasicTypeFiled', type: BaiscTypeXml::class)]
     public ?BaiscTypeXml $xmlValue;
 
 
-    #[XmlElement(rename:'BasicTypeListFiled', type: 'BaiscTypeListXml')]
+    #[XmlElement(rename:'BasicTypeListFiled', type: BaiscTypeListXml::class)]
     public ?BaiscTypeListXml $xmlListValue;
 
     public function __construct(

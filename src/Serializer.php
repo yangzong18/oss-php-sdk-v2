@@ -79,7 +79,7 @@ final class Serializer
         throw new SerializationExecption("Unsupport type " . \gettype($value));
     }
 
-    private static function serializeXmlModel(\XMLWriter $writer, string $name, Model $value)
+    private static function serializeXmlModel(\XMLWriter $writer, string $name, Model $value): void
     {
         $ro = new \ReflectionObject($value);
 

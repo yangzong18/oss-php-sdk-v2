@@ -95,7 +95,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse(isset($xml->FloatValue));
     }
 
-    public function testSerializeBaiscTypeListXml()
+    public function testSerializeBaiscTypeListXml(): void
     {
         // empty
         $obj = new BaiscTypeListXml();
@@ -127,7 +127,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('3.14', $xml->FloatValue[0]);
     }
 
-    public function testSerializeMixedTypeXml()
+    public function testSerializeMixedTypeXml(): void
     {
         // empty
         $obj = new MixedTypeXml();
@@ -180,7 +180,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('3.14', $xml->BasicTypeListFiled->FloatValue[0]);
     }
 
-    public function testSerializeMixedTypeListXml()
+    public function testSerializeMixedTypeListXml(): void
     {
         // empty
         $obj = new MixedTypeListXml();
