@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace AlibabaCloud\Oss\V2;
 
+use Psr\Http\Message\StreamInterface;
+
+use AlibabaCloud\Oss\V2\OperationInput;
 use AlibabaCloud\Oss\V2\Types\Model;
+use AlibabaCloud\Oss\V2\Types\RequestModel;
 use AlibabaCloud\Oss\V2\Annotation\Functions;
+use AlibabaCloud\Oss\V2\Exception\ParamRequiredExecption;
+use AlibabaCloud\Oss\V2\Exception\SerializationExecption;
+use AlibabaCloud\Oss\V2\Utils;
 
 final class Serializer
 {
@@ -14,7 +21,7 @@ final class Serializer
         $writer = new \XMLWriter();
         $writer->openMemory();
         $writer->startDocument('1.0', 'utf8');
-        self::serializeXmlModel($writer, $root,$model);
+        self::serializeXmlModel($writer, $root, $model);
         $writer->endDocument();
         return $writer->flush();
     }
@@ -31,15 +38,15 @@ final class Serializer
             if ($format == null) {
                 $format = 'iso8601';
             }
-            switch($format) {
-            case 'httptime':
-                $tval = gmdate('D, d M Y H:i:s \G\M\T', $stamp);
-                break;
-            case 'unixtime':
-                $tval = (string)$stamp;
-                break;
-            default:
-                $tval = gmdate('Y-m-d\TH:i:s\Z', $stamp);
+            switch ($format) {
+                case 'httptime':
+                    $tval = gmdate('D, d M Y H:i:s \G\M\T', $stamp);
+                    break;
+                case 'unixtime':
+                    $tval = (string)$stamp;
+                    break;
+                default:
+                    $tval = gmdate('Y-m-d\TH:i:s\Z', $stamp);
             }
             $writer->startElement($name);
             $writer->text($tval);
@@ -52,11 +59,11 @@ final class Serializer
         // bool
         if (in_array(needle: $type, haystack: ['bool', 'boolean'])) {
             $writer->startElement($name);
-            $writer->text($value === true ? 'true': 'false');
+            $writer->text($value === true ? 'true' : 'false');
             $writer->endElement();
             return;
         }
- 
+
         // other primitive type
         if (in_array(needle: $type, haystack: ['int', 'integer', 'float', 'double', 'string'])) {
             $writer->startElement($name);
@@ -69,7 +76,7 @@ final class Serializer
         // enum, since 8.1
         // TODO
 
-        throw new \Exception("Serialization Error, Unsupport type " . gettype($value));
+        throw new SerializationExecption("Unsupport type " . \gettype($value));
     }
 
     private static function serializeXmlModel(\XMLWriter $writer, string $name, Model $value)
@@ -93,7 +100,7 @@ final class Serializer
         $writer->startElement($name);
 
         // children element
-        foreach($ro->getProperties() as $property) {
+        foreach ($ro->getProperties() as $property) {
             $val = $property->getValue($value);
             if (!isset($val)) {
                 continue;
@@ -105,7 +112,7 @@ final class Serializer
             }
 
             if (is_array($val)) {
-                foreach($val as $vval) {
+                foreach ($val as $vval) {
                     self::serializeXmlAny($writer, $annotation->rename, $vval, $annotation->format);
                 }
             } else {
@@ -115,5 +122,123 @@ final class Serializer
 
         // end element
         $writer->endElement();
+    }
+
+    public static function serializeInput(RequestModel $request, OperationInput $input): OperationInput
+    {
+        $ro = new \ReflectionObject($request);
+
+        //headers
+        $hp = $ro->getProperty('headers');
+        $h = $hp->getValue($request);
+        if (is_array($h)) {
+            foreach ($h as $key => $value) {
+                $input->setHeader($key, (string)$value);
+            }
+        }
+
+        //parameters
+        $pp = $ro->getProperty('parameters');
+        $p = $pp->getValue($request);
+        if (is_array($p)) {
+            foreach ($p as $key => $value) {
+                $input->setParameter($key, (string) $value);
+            }
+        }
+
+        //payload
+        $pd = $ro->getProperty('payload');
+        $payload = $pd->getValue($request);
+        if ($payload instanceof StreamInterface) {
+            $input->setBody($payload);
+        }
+
+        // all properties in request
+        foreach ($ro->getProperties() as $property) {
+            $val = $property->getValue($request);
+            if (!isset($val)) {
+                if (Functions::isRequiredProperty($property)) {
+                    throw new ParamRequiredExecption($property->getName());
+                }
+                continue;
+            }
+
+            $annotation = Functions::getTagAnnotation($property);
+            if ($annotation == null || $annotation->tag !== 'input') {
+                continue;
+            }
+
+            switch ($annotation->position) {
+                case 'query':
+                    $input->setParameter(
+                        $annotation->rename,
+                        self::castToString($val, $annotation->format)
+                    );
+                    break;
+                case 'header':
+                    if ($annotation->format === 'usermeta' && \is_array($val)) {
+                        //user metadata
+                        foreach ($val as $k => $v) {
+                            $input->setHeader(
+                                (string)$annotation->rename . $k,
+                                (string)$v
+                            );
+                        }
+                    } else {
+                        $input->setHeader(
+                            $annotation->rename,
+                            self::castToString($val, $annotation->format)
+                        );
+                    }
+                    break;
+                case 'body':
+                    $body = $val;
+                    if ($annotation->type === 'xml') {
+                        $body = self::serializeXml($val, $annotation->rename);
+                    }
+                    $input->setBody(Utils::streamFor($body));
+                    break;
+            };
+        }
+
+        // custom serializer
+
+        return $input;
+    }
+
+    private static function castToString(mixed $value, ?string $format): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            $stamp = $value->getTimestamp();
+            if ($format == null) {
+                $format = 'iso8601';
+            }
+            switch ($format) {
+                case 'httptime':
+                    $tval = gmdate('D, d M Y H:i:s \G\M\T', $stamp);
+                    break;
+                case 'unixtime':
+                    $tval = (string)$stamp;
+                    break;
+                default:
+                    $tval = gmdate('Y-m-d\TH:i:s\Z', $stamp);
+            }
+
+            return $tval;
+        }
+
+        $type = \gettype($value);
+
+        // bool
+        if (in_array(needle: $type, haystack: ['bool', 'boolean'])) {
+            return $value === true ? 'true' : 'false';
+        }
+
+        // other primitive type
+        if (in_array(needle: $type, haystack: ['int', 'integer', 'float', 'double', 'string'])) {
+            return (string)$value;
+        }
+
+        throw new SerializationExecption("Unsupport type " . \gettype($value));
     }
 }

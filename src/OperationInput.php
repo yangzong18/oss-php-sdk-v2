@@ -62,8 +62,10 @@ final class OperationInput
         $this->opName = $opName;
         $this->method = $method;
         $this->headers = [];
-        foreach ($headers as $key => $value) {
-            $this->headers[strtolower($key)] = (string) $value;
+        if (\is_array($headers)) {
+            foreach ($headers as $key => $value) {
+                $this->headers[strtolower($key)] = (string) $value;
+            }
         }
         $this->parameters = $parameters ?? [];
         $this->body = $body;

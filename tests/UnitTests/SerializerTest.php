@@ -9,15 +9,29 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'BaiscTypeLackAnnotationXml.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'DatetimeTypeXml.php';
 
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'SubConfiguration.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'RootConfiguration.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'PutApiRequest.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'PutApiARequest.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'PutApiBRequest.php';
 
+use AlibabaCloud\Oss\V2\OperationInput;
 use AlibabaCloud\Oss\V2\Serializer;
-use DateTime;
+use AlibabaCloud\Oss\V2\Utils;
+use AlibabaCloud\Oss\V2\Exception\ParamRequiredExecption;
+
 use UnitTests\Fixtures\BaiscTypeXml;
 use UnitTests\Fixtures\BaiscTypeListXml;
 use UnitTests\Fixtures\MixedTypeXml;
 use UnitTests\Fixtures\MixedTypeListXml;
 use UnitTests\Fixtures\BaiscTypeLackAnnotationXml;
 use UnitTests\Fixtures\DatetimeTypeXml;
+
+use UnitTests\Fixtures\SubConfiguration;
+use UnitTests\Fixtures\RootConfiguration;
+use UnitTests\Fixtures\PutApiRequest;
+use UnitTests\Fixtures\PutApiARequest;
+use UnitTests\Fixtures\PutApiBRequest;
 
 
 class SerializerTest extends \PHPUnit\Framework\TestCase
@@ -285,5 +299,386 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('2023-12-17T03:30:19Z', $xml->DateTimeImmutableValue);
         $this->assertEquals('1702783809', $xml->UnixtimeValue);
         $this->assertEquals('Sun, 17 Dec 2023 03:30:09 GMT', $xml->HttptimeValue);
+    }
+
+    public function testSerializeInput(): void
+    {
+        $datetimeUtc = new \DateTime();
+        $datetimeUtc->setTimestamp(1702783809);
+
+        $datetime2Utc = new \DateTime();
+        $datetime2Utc->setTimestamp(1702783819);
+
+        $request = new PutApiRequest(
+            bucket: "bucket-124",
+            #key: "key-1",
+            strHeader: "str_header",
+            intHeader: 123,
+            boolHeader: true,
+            floatHeader: 2.5,
+            isotimeHeader: $datetimeUtc,
+            httptimeHeader: $datetimeUtc,
+            unixtimeHeader: $datetimeUtc,
+            strParam: "str_param",
+            intParam: 456,
+            boolParam: false,
+            floatParam: 4.5,
+            isotimeParam: $datetime2Utc,
+            httptimeParam: $datetime2Utc,
+            unixtimeParam: $datetime2Utc,
+            configuration: new RootConfiguration(
+                id: "id-124",
+                text: "just for test",
+                subConfiguration: [
+                    new SubConfiguration(
+                        strField: 'str-1',
+                        intField: 111,
+                    ),
+                    new SubConfiguration(
+                        strField: 'str-2',
+                        intField: 222,
+                    ),
+                ],
+            )
+        );
+
+        # miss required field
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+
+        try {
+            Serializer::serializeInput($request, $input);
+            $this->assertTrue(false, "shoud not here");
+        } catch (ParamRequiredExecption $e) {
+            $this->assertStringContainsString("missing required field, key", (string)$e);
+        } catch (\Exception $e) {
+            $this->assertTrue(false, "shoud not here");
+        }
+
+        #normal case
+        $request->setKey('key');
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('123', $input->getHeaders()['x-oss-int']);
+        $this->assertEquals('true', $input->getHeaders()['x-oss-bool']);
+        $this->assertEquals('2.5', $input->getHeaders()['x-oss-float']);
+        $this->assertEquals('2023-12-17T03:30:09Z', $input->getHeaders()['x-oss-isotime']);
+        $this->assertEquals('Sun, 17 Dec 2023 03:30:09 GMT', $input->getHeaders()['x-oss-httptime']);
+        $this->assertEquals('1702783809', $input->getHeaders()['x-oss-unixtime']);
+
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+        $this->assertEquals('456', $input->getParameters()['param-int']);
+        $this->assertEquals('false', $input->getParameters()['param-bool']);
+        $this->assertEquals('4.5', $input->getParameters()['param-float']);
+        $this->assertEquals('2023-12-17T03:30:19Z', $input->getParameters()['param-isotime']);
+        $this->assertEquals('Sun, 17 Dec 2023 03:30:19 GMT', $input->getParameters()['param-httptime']);
+        $this->assertEquals('1702783819', $input->getParameters()['param-unixtime']);
+
+        $str = $input->getBody()->getContents();
+        $this->assertStringContainsString('<Configuration>', $str);
+        $xml = \simplexml_load_string($str);
+        $this->assertEquals(4, $xml->count());
+        $this->assertEquals('id-124', $xml->Id);
+        $this->assertEquals('just for test', $xml->Text);
+        $this->assertEquals(2, ($xml->SubConfiguration)->count());
+        $this->assertEquals('str-1', $xml->SubConfiguration[0]->StrField);
+        $this->assertEquals('111', $xml->SubConfiguration[0]->IntField);
+        $this->assertEquals('str-2', $xml->SubConfiguration[1]->StrField);
+        $this->assertEquals('222', $xml->SubConfiguration[1]->IntField);
+    }
+
+    public function testSerializeInputWithHeadersAndParameters(): void
+    {
+        //case 1, input has headers and parameters
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+            headers: ['Key' => 'value', 'key-1' => 'value-1'],
+            parameters: ['Key' => 'value', 'key-1' => 'value-1'],
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('value', $input->getHeaders()['key']);
+        $this->assertEquals('value-1', $input->getHeaders()['key-1']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+        $this->assertEquals('value', $input->getParameters()['Key']);
+        $this->assertEquals('value-1', $input->getParameters()['key-1']);
+
+        //case 2, input and request has same headers and parameters
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+            headers: ['X-OSS-str' => 'value'],
+            parameters: ['param-str' => 'value', 'param-int' => '123'],
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals(1, count($input->getHeaders()));
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals(2, count($input->getParameters()));
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+        $this->assertEquals('123', $input->getParameters()['param-int']);
+
+        //case 3, request has headers and parameters, request.headers and request.parameters
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $request->setHeaders(['X-Oss-header1' => 'value-1', 'x-oss-header2' => 'value-2']);
+        $request->setParameters(['X-Oss-param1' => 'value-1', 'x-oss-param2' => 'value-2']);
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+            headers: ['Key' => 'value', 'key-1' => 'value-1'],
+            parameters: ['Key' => 'value', 'key-1' => 'value-1'],
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('value', $input->getHeaders()['key']);
+        $this->assertEquals('value-1', $input->getHeaders()['key-1']);
+        $this->assertEquals('value-1', $input->getHeaders()['x-oss-header1']);
+        $this->assertEquals('value-2', $input->getHeaders()['x-oss-header2']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+        $this->assertEquals('value', $input->getParameters()['Key']);
+        $this->assertEquals('value-1', $input->getParameters()['key-1']);
+        $this->assertEquals('value-1', $input->getParameters()['X-Oss-param1']);
+        $this->assertEquals('value-2', $input->getParameters()['x-oss-param2']);
+    }
+
+    public function testSerializeInputWithBody(): void
+    {
+        #case 1, request with body
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+            configuration: "hello world"
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+
+        $str = $input->getBody()->getContents();
+        $this->assertEquals('hello world', $str);
+
+        #case 2, request without body
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+        $this->assertEquals(null, $input->getBody());
+
+        #case 3, input with body
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+            body: Utils::streamFor('1234'),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+
+        $str = $input->getBody()->getContents();
+        $this->assertEquals('1234', $str);
+
+        #case 4, input & request with body
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+            configuration: "hello world abc",
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+            body: Utils::streamFor('1234'),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+
+        $str = $input->getBody()->getContents();
+        $this->assertEquals('hello world abc', $str);
+
+        #case 5, request.paylaod
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $request->setPayload(Utils::streamFor('just a payload'));
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+
+        $str = $input->getBody()->getContents();
+        $this->assertEquals('just a payload', $str);
+
+        #case 6, request.paylaod and input.body
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $request->setPayload(Utils::streamFor('payload-1234'));
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+            body: Utils::streamFor('body-1234'),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+
+        $str = $input->getBody()->getContents();
+        $this->assertEquals('payload-1234', $str);
+
+        #case 6, request.paylaod and request.body
+        $request = new PutApiARequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+            configuration: 'request body',
+        );
+
+        $request->setPayload(Utils::streamFor('payload-1234'));
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+            body: Utils::streamFor('body-1234'),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+
+        $str = $input->getBody()->getContents();
+        $this->assertEquals('request body', $str);
+    }
+
+    public function testSerializeInputWithArrayHeader(): void
+    {
+        # case 1
+        $request = new PutApiBRequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+            arrayHeader: ['a' => 'value-1', 'b' => 'value-2'],
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('value-1', $input->getHeaders()['x-oss-prefix-a']);
+        $this->assertEquals('value-2', $input->getHeaders()['x-oss-prefix-b']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+
+        # case 1
+        $request = new PutApiBRequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+        Serializer::serializeInput($request, $input);
+        $this->assertEquals(1, count($input->getHeaders()));
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
     }
 }
