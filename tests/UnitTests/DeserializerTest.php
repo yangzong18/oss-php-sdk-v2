@@ -36,6 +36,7 @@ class DeserializerTest extends \PHPUnit\Framework\TestCase
 
         $xml = new BaiscTypeXml();
         Deserializer::deserializeXml($str, $xml);
+        $this->assertTrue(\is_scalar($xml->strValue));
         $this->assertEquals('id-124', $xml->strValue);
         $this->assertEquals(1234, $xml->intValue);
         $this->assertEquals(true, $xml->boolValue);
@@ -92,6 +93,7 @@ class DeserializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(true, $xml->boolValues[0]);
         $this->assertEquals(true, $xml->boolValues[1]);
         $this->assertEquals(false, $xml->boolValues[2]);
+        $this->assertTrue(\is_array($xml->floatValues));
         $this->assertEquals(1, count($xml->floatValues));
         $this->assertEquals('3.14', $xml->floatValues[0]);
 
@@ -200,7 +202,7 @@ class DeserializerTest extends \PHPUnit\Framework\TestCase
 
         $this->assertEquals('str-111', $xml->strValue);
         $this->assertEquals(12, $xml->intValue);
-
+        $this->assertTrue(\is_array($xml->xmlValues));
         $this->assertEquals(2, count($xml->xmlValues));
         $this->assertEquals('str', $xml->xmlValues[0]->strValue);
         $this->assertEquals(123, $xml->xmlValues[0]->intValue);
@@ -211,6 +213,30 @@ class DeserializerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(223, $xml->xmlValues[1]->intValue);
         $this->assertEquals(false, $xml->xmlValues[1]->boolValue);
         $this->assertFalse(isset($xml->xmlValues[1]->floatValue));
+
+        $str = '<?xml version="1.0" encoding="UTF-8"?>
+            <MixedTypeList>
+                <StrValue>str-111</StrValue>
+                <IntValue>12</IntValue>
+                <BasicTypeFiled>
+                    <StrValue>str</StrValue>
+                    <IntValue>123</IntValue>
+                    <BoolValue>true</BoolValue>
+                    <FloatValue>1.14</FloatValue>
+                </BasicTypeFiled>
+            </MixedTypeList>';
+
+        $xml = new MixedTypeListXml();
+        Deserializer::deserializeXml($str, $xml);
+
+        $this->assertEquals('str-111', $xml->strValue);
+        $this->assertEquals(12, $xml->intValue);
+        $this->assertTrue(\is_array($xml->xmlValues));
+        $this->assertEquals(1, count($xml->xmlValues));
+        $this->assertEquals('str', $xml->xmlValues[0]->strValue);
+        $this->assertEquals(123, $xml->xmlValues[0]->intValue);
+        $this->assertEquals(true, $xml->xmlValues[0]->boolValue);
+        $this->assertEquals(1.14, $xml->xmlValues[0]->floatValue);
     }
 
     public function testDeserializeCheckXmlRoot(): void
