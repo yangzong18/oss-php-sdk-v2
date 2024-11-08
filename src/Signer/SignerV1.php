@@ -96,7 +96,7 @@ class SignerV1 implements SignerInterface
         // CanonicalizedOSSHeaders
         $headers = [];
         foreach ($request->getHeaders() as $k => $v) {
-            $lowerCaseKey = strtolower($k);
+            $lowerCaseKey = strtolower((string)$k);
             if (str_starts_with($lowerCaseKey, self::OSS_HEADER_PREFIX)) {
                 $headers[] = $lowerCaseKey;
             }

@@ -214,7 +214,7 @@ class SignerV4 implements SignerInterface
         }
         $keys = array();
         foreach ($headers as $key => $value) {
-            $lowk = strtolower($key);
+            $lowk = strtolower((string)$key);
             if (isset($addHeaders[$lowk])) {
                 $keys[$lowk] = '';
             }
@@ -277,7 +277,7 @@ class SignerV4 implements SignerInterface
         $headers = [];
         $addHeadersMap = array_map('strtolower', $additionalHeaders);
         foreach (array_keys($request->getHeaders()) as $k) {
-            $lowk = strtolower($k);
+            $lowk = strtolower((string)$k);
             if ($this->isSignedHeader($lowk)) {
                 $headers[] = $lowk;
             } elseif (in_array($lowk, $addHeadersMap, true)) {
