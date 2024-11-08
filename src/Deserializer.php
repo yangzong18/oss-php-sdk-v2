@@ -66,7 +66,7 @@ final class Deserializer
         return $values[0];
     }
 
-    private static function deserializeXmlModel(\SimpleXMLElement $element, mixed $class)
+    private static function deserializeXmlModel(\SimpleXMLElement $element, mixed $class): Model
     {
         if (\is_object($class)) {
             if (!($class instanceof Model)) {
@@ -126,6 +126,30 @@ final class Deserializer
         return (float) $value;
     }
 
+    private static function castToAny(string $value, string $type, ?string $format)
+    {
+        switch ($type) {
+            case "bool":
+                $vv = self::castToBool($value);
+                break;
+            case "string":
+                $vv = $value;
+                break;
+            case "int":
+                $vv = self::castToInt($value);
+                break;
+            case "float":
+                $vv = self::castToFloat($value);
+                break;
+            case "DateTime":
+                $vv = self::castToDatetime($value, $format);
+                break;
+            default:
+                throw new DeserializationExecption('Unsupport type:' . $type);
+        }
+        return $vv;
+    }
+
     private static function castToDatetime(string $value, ?string $format): \DateTime
     {
         switch ($format) {
@@ -145,5 +169,136 @@ final class Deserializer
             $value,
             new \DateTimeZone('UTC')
         );
+    }
+
+    public static function deserializeOutput(ResultModel $result, OperationOutput $output, array $customDeserializer = []): void
+    {
+        $ro = new \ReflectionObject($result);
+
+        //common part
+        $p = $ro->getProperty('status');
+        $p->setValue($result, $output->getStatus());
+
+        $p = $ro->getProperty('statusCode');
+        $p->setValue($result, $output->GetStatusCode());
+
+        $headers = $output->getHeaders() ?? [];
+        $p = $ro->getProperty('headers');
+        $p->setValue($result, $headers);
+
+        if (isset($headers['x-oss-request-id'])) {
+            $p = $ro->getProperty('requestId');
+            $p->setValue($result, $headers['x-oss-request-id']);
+        }
+
+        // custom deserializer
+        foreach ($customDeserializer as $deserializer) {
+            call_user_func($deserializer, $result, $output);
+        }
+    }
+
+    public static function deserializeOutputHeaders(ResultModel $result, OperationOutput $output)
+    {
+        $headers = $output->getHeaders();
+        if (empty($headers)) {
+            return;
+        }
+
+        $usermetas = [];
+        $ro = new \ReflectionObject($result);
+        foreach ($ro->getProperties() as $property) {
+            $annotation = Functions::getTagAnnotation($property);
+            if (
+                $annotation == null ||
+                $annotation->tag !== 'output' ||
+                $annotation->position !== 'header'
+            ) {
+                continue;
+            }
+
+            #usermeta
+            if ($annotation->format === 'usermeta') {
+                \array_push($usermetas, ['property' => $property, 'annotation' => $annotation]);
+                continue;
+            }
+
+            $name = $annotation->rename;
+            if (!\array_key_exists($name, array: $headers)) {
+                continue;
+            }
+
+            $value = self::castToAny( $headers[$name], $annotation->type, $annotation->format);
+            $property->setValue($result, $value);
+        }
+
+        foreach ($usermetas as $item) {
+            $annotation = $item['annotation'];
+            $property = $item['property'];
+            $prefix = strtolower($annotation->rename);
+            $len = strlen($prefix);
+            $meta = []; 
+            foreach ($headers as  $key => $value) {
+                if (strncasecmp($key, $prefix, $len) == 0) {
+                    $meta[strtolower(substr($key, $len))] = $value;
+                }
+            }
+
+            if (count($meta) > 0) {
+                $property->setValue($result, $meta);
+            }
+        }
+    }
+
+    public static function deserializeOutputBody(ResultModel $result, OperationOutput $output)
+    {
+        //#[TagProperty(tag: 'output', position: 'body', rename: '...', type: 'xml')]
+        $body = $output->getBody();
+        if ($body == null) {
+            return;
+        }
+
+        $content = $body->getContents();
+
+        if ($content === '') {
+            return;
+        }
+
+        $ro = new \ReflectionObject($result);
+        foreach ($ro->getProperties() as $property) {
+            $annotation = Functions::getTagAnnotation($property);
+            if (
+                $annotation == null ||
+                $annotation->tag !== 'output' ||
+                $annotation->position !== 'body'
+            ) {
+                continue;
+            }
+
+            if ('xml' === $annotation->format) {
+                $value = self::deserializeXml($content, $annotation->type, $annotation->rename);
+                $property->setValue($result, $value);
+            } else {
+                throw new DeserializationExecption('Unsupport body format:' . $annotation->format);
+            }
+
+            // only one body tag
+            break;
+        }
+    }
+
+    public static function deserializeOutputInnerBody(ResultModel $result, OperationOutput $output)
+    {        
+        $body = $output->getBody();
+        if ($body == null) {
+            return;
+        }
+
+        $content = $body->getContents();
+
+        if ($content === '') {
+            return;
+        }
+
+        self::deserializeXml($content, $result);
     }
 }

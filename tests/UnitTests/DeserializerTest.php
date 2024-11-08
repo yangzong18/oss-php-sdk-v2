@@ -9,7 +9,13 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'BaiscTypeLackAnnotationXml.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'DatetimeTypeXml.php';
 
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'PutApiResult.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'PutApiBResult.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'RootConfiguration.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'SubConfiguration.php';
+
 use AlibabaCloud\Oss\V2\OperationOutput;
+use AlibabaCloud\Oss\V2\Types\ResultModel;
 use AlibabaCloud\Oss\V2\Deserializer;
 use AlibabaCloud\Oss\V2\Utils;
 use AlibabaCloud\Oss\V2\Exception\DeserializationExecption;
@@ -18,8 +24,11 @@ use UnitTests\Fixtures\BaiscTypeXml;
 use UnitTests\Fixtures\BaiscTypeListXml;
 use UnitTests\Fixtures\MixedTypeXml;
 use UnitTests\Fixtures\MixedTypeListXml;
-use UnitTests\Fixtures\BaiscTypeLackAnnotationXml;
 use UnitTests\Fixtures\DatetimeTypeXml;
+use UnitTests\Fixtures\PutApiResult;
+use UnitTests\Fixtures\PutApiBResult;
+use UnitTests\Fixtures\RootConfiguration;
+use UnitTests\Fixtures\SubConfiguration;
 
 
 class DeserializerTest extends \PHPUnit\Framework\TestCase
@@ -284,5 +293,341 @@ class DeserializerTest extends \PHPUnit\Framework\TestCase
         } catch (\Exception $e) {
             $this->assertTrue(false, "shoud not here");
         }
+    }
+
+    public function testDeserializeOutputCommon(): void
+    {
+        $output = new OperationOutput();
+        $result = new PutApiResult();
+        Deserializer::deserializeOutput($result, $output);
+        $this->assertEquals('', $result->getStatus());
+        $this->assertEquals(0, $result->getStatusCode());
+        $this->assertEquals('', $result->getRequestId());
+        $this->assertEquals(0, count($result->getHeaders()));
+
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: ['x-oss-request-id' => '123', 'content-type' => 'test']
+        );
+        $result = new PutApiResult();
+        Deserializer::deserializeOutput($result, $output);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(2, count($result->getHeaders()));
+        $this->assertEquals('test', $result->getHeaders()['content-type']);
+        $this->assertEquals('123', $result->getHeaders()['x-oss-request-id']);
+
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 203,
+            headers: ['content-type' => 'test']
+        );
+        $result = new PutApiResult();
+        Deserializer::deserializeOutput($result, $output);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(203, $result->getStatusCode());
+        $this->assertEquals('', $result->getRequestId());
+        $this->assertEquals(1, count($result->getHeaders()));
+        $this->assertEquals('test', $result->getHeaders()['content-type']);
+    }
+
+    public function testDeserializeOutputHeaderTag(): void
+    {
+        // normal header
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'content-type' => 'test',
+                'x-oss-str' => 'str-1',
+                'x-oss-int' => '123',
+                'x-oss-bool' => 'false',
+                'x-oss-float' => '3.5',
+                'x-oss-isotime' => '2023-12-17T03:30:09Z',
+                'x-oss-httptime' => 'Sun, 17 Dec 2023 03:30:09 GMT',
+                'x-oss-unixtime' => '1702783809',
+            ],
+        );
+        $date = new \DateTime();
+        $date->setTimestamp(1702783809);
+        $result = new PutApiResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputHeaders'],
+        ];
+        Deserializer::deserializeOutput($result, $output, $customDeserializer);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(9, count($result->getHeaders()));
+
+        $this->assertEquals('str-1', $result->getStrHeader());
+        $this->assertEquals(123, $result->getIntHeader());
+        $this->assertEquals(false, $result->getBoolHeader());
+        $this->assertEquals(3.5, $result->getFloatHeader());
+        $this->assertEquals($date, $result->getIsotimeHeader());
+        $this->assertEquals($date, $result->getHttptimeHeader());
+        $this->assertEquals($date, $result->getUnixtimeHeader());
+
+        // header array
+        // normal header
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'x-oss-str' => 'str-1',
+                'x-oss-int' => '123',
+                'x-oss-prefix-str1' => '123-1',
+                'x-oss-prefix-str2' => '123-2',
+                'x-oss-prefix-str3' => '123-3',
+            ],
+        );
+        $date = new \DateTime();
+        $date->setTimestamp(1702783809);
+        $result = new PutApiResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputHeaders'],
+        ];
+        Deserializer::deserializeOutput($result, $output, $customDeserializer);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(6, count($result->getHeaders()));
+
+        $this->assertEquals('str-1', $result->getStrHeader());
+        $this->assertEquals(123, $result->getIntHeader());
+        $this->assertEquals(null, $result->getBoolHeader());
+        $this->assertEquals(null, $result->getFloatHeader());
+        $this->assertEquals(null, $result->getIsotimeHeader());
+        $this->assertEquals(null, $result->getHttptimeHeader());
+        $this->assertEquals(null, $result->getUnixtimeHeader());
+
+        $this->assertEquals(3, count($result->getArrayHeader()));
+        $this->assertEquals('123-1', $result->getArrayHeader()['str1']);
+        $this->assertEquals('123-2', $result->getArrayHeader()['str2']);
+        $this->assertEquals('123-3', $result->getArrayHeader()['str3']);
+    }
+
+    public function testDeserializeOutputBodyXml(): void
+    {
+        // null body
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'content-type' => 'test',
+            ],
+        );
+        $result = new PutApiResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputBody'],
+        ];
+        Deserializer::deserializeOutput($result, $output, $customDeserializer);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(2, count($result->getHeaders()));
+        $this->assertEquals(null, $result->getConfiguration());
+
+        //empty body
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'content-type' => 'test',
+            ],
+            body: Utils::streamFor(''),
+        );
+        $result = new PutApiResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputBody'],
+        ];
+        Deserializer::deserializeOutput($result, $output, $customDeserializer);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(2, count($result->getHeaders()));
+        $this->assertEquals(null, $result->getConfiguration());
+
+        //xml
+        $str = '<?xml version="1.0" encoding="UTF-8"?>
+            <Configuration>
+                <Id>str1</Id>
+                <Text>str2</Text>
+                <SubConfiguration>
+                    <StrField>str-sub</StrField>
+                    <IntField>1234</IntField>      
+                </SubConfiguration>
+            </Configuration>';
+
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'content-type' => 'test',
+            ],
+            body: Utils::streamFor($str),
+        );
+        $result = new PutApiResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputBody'],
+        ];
+        Deserializer::deserializeOutput($result, $output, $customDeserializer);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(2, count($result->getHeaders()));
+        $this->assertInstanceOf(RootConfiguration::class, $result->getConfiguration());
+        $this->assertEquals('str1', $result->getConfiguration()->getId());
+        $this->assertEquals('str2', $result->getConfiguration()->getText());
+        $this->assertEquals('str-sub', $result->getConfiguration()->getSubConfiguration()[0]->getStrField());
+        $this->assertEquals(1234, $result->getConfiguration()->getSubConfiguration()[0]->getIntField());
+
+        //xml tag not match
+        $str = '<?xml version="1.0" encoding="UTF-8"?>
+            <RootConfiguration>
+                <Id>str1</Id>
+                <Text>str2</Text>
+                <SubConfiguration>
+                    <StrField>str-sub</StrField>
+                    <IntField>1234</IntField>      
+                </SubConfiguration>
+            </RootConfiguration>';
+
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'content-type' => 'test',
+            ],
+            body: Utils::streamFor($str),
+        );
+        $result = new PutApiResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputBody'],
+        ];
+
+        try {
+            Deserializer::deserializeOutput($result, $output, $customDeserializer);
+            $this->assertTrue(false, "shoud not here");
+        } catch (DeserializationExecption $e) {
+            $this->assertStringContainsString("Deserialization raised an exception: Not found tag <Configuration>", (string)$e);
+        } catch (\Exception $e) {
+            $this->assertTrue(false, "shoud not here");
+        }
+    }
+
+    public function testDeserializeOutputHeaderBodyTag(): void
+    {
+        //xml
+        $str = '<?xml version="1.0" encoding="UTF-8"?>
+                <Configuration>
+                    <Id>str1</Id>
+                    <Text>str2</Text>
+                    <SubConfiguration>
+                        <StrField>str-sub</StrField>
+                        <IntField>1234</IntField>      
+                    </SubConfiguration>
+                </Configuration>';
+        $date = new \DateTime();
+        $date->setTimestamp(1702783809);
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'content-type' => 'test',
+                'x-oss-str' => 'str-1',
+                'x-oss-int' => '123',
+                'x-oss-bool' => 'false',
+                'x-oss-float' => '3.5',
+                'x-oss-isotime' => '2023-12-17T03:30:09Z',
+                'x-oss-httptime' => 'Sun, 17 Dec 2023 03:30:09 GMT',
+                'x-oss-unixtime' => '1702783809',
+            ],
+            body: Utils::streamFor($str),
+        );
+
+        $result = new PutApiResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputHeaders'],
+            [Deserializer::class, 'deserializeOutputBody'],
+        ];
+        Deserializer::deserializeOutput($result, $output, $customDeserializer);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(9, count($result->getHeaders()));
+
+        $this->assertEquals('str-1', $result->getStrHeader());
+        $this->assertEquals(123, $result->getIntHeader());
+        $this->assertEquals(false, $result->getBoolHeader());
+        $this->assertEquals(3.5, $result->getFloatHeader());
+        $this->assertEquals($date, $result->getIsotimeHeader());
+        $this->assertEquals($date, $result->getHttptimeHeader());
+        $this->assertEquals($date, $result->getUnixtimeHeader());
+
+        $this->assertInstanceOf(RootConfiguration::class, $result->getConfiguration());
+        $this->assertEquals('str1', $result->getConfiguration()->getId());
+        $this->assertEquals('str2', $result->getConfiguration()->getText());
+        $this->assertEquals('str-sub', $result->getConfiguration()->getSubConfiguration()[0]->getStrField());
+        $this->assertEquals(1234, $result->getConfiguration()->getSubConfiguration()[0]->getIntField());
+    }
+
+    public function testDeserializeOutputBodyXmlElement(): void
+    {
+        //xml
+        $str = '<?xml version="1.0" encoding="UTF-8"?>
+                <Configuration>
+                    <Id>str1</Id>
+                    <Text>str2</Text>
+                    <SubConfiguration>
+                        <StrField>str-sub</StrField>
+                        <IntField>1234</IntField>      
+                    </SubConfiguration>
+                </Configuration>';
+        $date = new \DateTime();
+        $date->setTimestamp(1702783809);
+        $output = new OperationOutput(
+            status: 'OK',
+            statusCode: 200,
+            headers: [
+                'x-oss-request-id' => '123',
+                'content-type' => 'test',
+                'x-oss-str' => 'str-1',
+                'x-oss-int' => '123',
+                'x-oss-bool' => 'false',
+                'x-oss-float' => '3.5',
+            ],
+            body: Utils::streamFor($str),
+        );
+
+        $result = new PutApiBResult();
+        $customDeserializer = [
+            [Deserializer::class, 'deserializeOutputHeaders'],
+            [Deserializer::class, 'deserializeOutputInnerBody'],
+        ];
+        Deserializer::deserializeOutput($result, $output, $customDeserializer);
+        $this->assertEquals('OK', $result->getStatus());
+        $this->assertEquals(200, $result->getStatusCode());
+        $this->assertEquals('123', $result->getRequestId());
+        $this->assertEquals(6, count($result->getHeaders()));
+
+        $this->assertEquals('str-1', $result->getStrHeader());
+        $this->assertEquals(123, $result->getIntHeader());
+        $this->assertEquals(false, $result->getBoolHeader());
+        $this->assertEquals(3.5, $result->getFloatHeader());
+
+        $this->assertEquals('str1', $result->getId());
+        $this->assertEquals('str2', $result->getText());
+        $this->assertEquals('str-sub', $result->getSubConfiguration()[0]->getStrField());
+        $this->assertEquals(1234, $result->getSubConfiguration()[0]->getIntField());
     }
 }

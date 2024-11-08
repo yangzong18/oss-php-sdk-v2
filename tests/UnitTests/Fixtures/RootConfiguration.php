@@ -19,7 +19,7 @@ class RootConfiguration  extends Model
     #[XmlElement(rename: 'Text', type: 'string')]
     private ?string $text;
 
-    #[XmlElement(rename: 'SubConfiguration', type: 'SubConfiguration')]
+    #[XmlElement(rename: 'SubConfiguration', type: SubConfiguration::class)]
     private ?array $subConfiguration;
 
     public function __construct(

@@ -8,5 +8,28 @@ use AlibabaCloud\Oss\V2\Types\Model;
 
 class ResultModel extends Model
 {
-    public function __construct(array $options = []) {}
+    protected string $status = '';
+
+    protected int $statusCode = 0;
+
+    protected string $requestId = '';
+
+    protected array $headers = [];
+
+    public function __construct(array $options = []) {
+        if (\is_array($options) && !empty($options)) {
+            if (isset($options['status'])) {
+                $this->status = $options['status'];
+            }
+            if (isset($options['statusCode'])) {
+                $this->statusCode = $options['statusCode'];
+            }
+            if (isset($options['requestId'])) {
+                $this->requestId = $options['requestId'];
+            }
+            if (isset($options['headers'])) {
+                $this->headers = $options['headers'];
+            }
+        }
+    }
 }

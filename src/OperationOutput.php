@@ -28,12 +28,12 @@ final class OperationOutput
     /**
      * @var StreamInterface
      */
-    private $body;
+    private ?StreamInterface $body;
 
     /**
      * @var OperationInput
      */
-    private $opInput;
+    private ?OperationInput $opInput;
 
     /**
      * @var array<string, mixed>
@@ -43,19 +43,19 @@ final class OperationOutput
     /**
      * @var ResponseInterface
      */
-    private $httpResponse;
+    private ?ResponseInterface $httpResponse;
 
     public function __construct(
-        string $status,
-        int $statusCode,
-        array $headers = null,
-        StreamInterface $body = null,
-        OperationInput $opInput = null,
-        array $opMetadata = null,
-        ResponseInterface $httpResponse = null
+        ?string $status = null,
+        ?int $statusCode = null,
+        ?array $headers = null,
+        ?StreamInterface $body = null,
+        ?OperationInput $opInput = null,
+        ?array $opMetadata = null,
+        ?ResponseInterface $httpResponse = null
     ) {
-        $this->status = $status;
-        $this->statusCode = $statusCode;
+        $this->status = $status ?? '';
+        $this->statusCode = $statusCode ?? 0;
         $this->headers = $headers ?? [];
         $this->body = $body;
         $this->opInput = $opInput;
