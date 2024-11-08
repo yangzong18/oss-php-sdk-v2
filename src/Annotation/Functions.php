@@ -43,6 +43,33 @@ final class Functions
         return null;
     }
 
+    public static function getHeaderAnnotation(\ReflectionProperty $property): ?TagProperty
+    {
+        $result = self::getPropertyAnnotationsBy($property, TagHeader::class);
+        if (count($result) > 0) {
+            return $result[0];
+        }
+        return null;
+    }
+
+    public static function getQueryAnnotation(\ReflectionProperty $property): ?TagProperty
+    {
+        $result = self::getPropertyAnnotationsBy($property, TagQuery::class);
+        if (count($result) > 0) {
+            return $result[0];
+        }
+        return null;
+    }
+
+    public static function getBodyAnnotation(\ReflectionProperty $property): ?TagProperty
+    {
+        $result = self::getPropertyAnnotationsBy($property, TagBody::class);
+        if (count($result) > 0) {
+            return $result[0];
+        }
+        return null;
+    }
+
     public static function getPropertyAnnotations(\ReflectionProperty $property): array
     {
         return self::getPropertyAnnotationsBy($property, AnnotationInterface::class);

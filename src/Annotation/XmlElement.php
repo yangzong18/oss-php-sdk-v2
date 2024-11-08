@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AlibabaCloud\Oss\V2\Annotation;
 
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_PROPERTY)]
-class XmlElement implements AnnotationInterface
+final class XmlElement implements AnnotationInterface
 {
     public string $rename;
 

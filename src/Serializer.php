@@ -164,7 +164,7 @@ final class Serializer
             }
 
             $annotation = Functions::getTagAnnotation($property);
-            if ($annotation == null || $annotation->tag !== 'input') {
+            if ($annotation == null) {
                 continue;
             }
 

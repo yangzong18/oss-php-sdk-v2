@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AlibabaCloud\Oss\V2\Annotation;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
-class XmlRoot implements AnnotationInterface
+final class XmlRoot implements AnnotationInterface
 {
     public string $name;
 

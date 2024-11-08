@@ -4,37 +4,38 @@ namespace UnitTests\Fixtures;
 
 use AlibabaCloud\Oss\V2\Types\ModelTrait;
 use AlibabaCloud\Oss\V2\Types\ResultModel;
-use AlibabaCloud\Oss\V2\Annotation\TagProperty;
+use AlibabaCloud\Oss\V2\Annotation\TagHeader;
+use AlibabaCloud\Oss\V2\Annotation\TagBody;
 
 class PutApiResult  extends ResultModel
 {
     use ModelTrait;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-str', type: 'string')]
+    #[TagHeader(rename: 'x-oss-str', type: 'string')]
     private ?string $strHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-int', type: 'int')]
+    #[TagHeader(rename: 'x-oss-int', type: 'int')]
     private ?int $intHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-bool', type: 'bool')]
+    #[TagHeader(rename: 'x-oss-bool', type: 'bool')]
     private ?bool $boolHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-float', type: 'float')]
+    #[TagHeader(rename: 'x-oss-float', type: 'float')]
     private ?float $floatHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-isotime', type: 'DateTime')]
+    #[TagHeader(rename: 'x-oss-isotime', type: 'DateTime')]
     private ?\Datetime $isotimeHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-httptime', type: 'DateTime', format: 'httptime')]
+    #[TagHeader(rename: 'x-oss-httptime', type: 'DateTime', format: 'httptime')]
     private ?\Datetime $httptimeHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-unixtime', type: 'DateTime', format: 'unixtime')]
+    #[TagHeader(rename: 'x-oss-unixtime', type: 'DateTime', format: 'unixtime')]
     private ?\Datetime $unixtimeHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-prefix-', type: 'string', format: 'usermeta')]
+    #[TagHeader(rename: 'x-oss-prefix-', type: 'string', format: 'usermeta')]
     private ?array $arrayHeader;
 
-    #[TagProperty(tag: 'output', position: 'body', rename: 'Configuration', type: RootConfiguration::class, format: 'xml')]
+    #[TagBody(rename: 'Configuration', type: RootConfiguration::class, format: 'xml')]
     private ?RootConfiguration $configuration;
 
     public function __construct(

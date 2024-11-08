@@ -6,62 +6,65 @@ use AlibabaCloud\Oss\V2\Types\ModelTrait;
 use AlibabaCloud\Oss\V2\Types\RequestModel;
 use AlibabaCloud\Oss\V2\Annotation\TagProperty;
 use AlibabaCloud\Oss\V2\Annotation\RequiredProperty;
+use AlibabaCloud\Oss\V2\Annotation\TagHeader;
+use AlibabaCloud\Oss\V2\Annotation\TagQuery;
+use AlibabaCloud\Oss\V2\Annotation\TagBody;
 
 class PutApiRequest  extends RequestModel
 {
     use ModelTrait;
 
     #[RequiredProperty()]
-    #[TagProperty(tag: 'input', position: 'host', rename: '', type: 'string')]
+    #[TagProperty(tag: '', position: 'host', rename: '', type: 'string')]
     private ?string $bucket;
 
     #[RequiredProperty()]
-    #[TagProperty(tag: 'input', position: 'path', rename: '', type: 'string')]
+    #[TagProperty(tag: '', position: 'path', rename: '', type: 'string')]
     private ?string $key;
 
-    #[TagProperty(tag: 'input', position: 'header', rename: 'x-oss-str', type: 'string')]
+    #[TagHeader(rename: 'x-oss-str', type: 'string')]
     private ?string $strHeader;
 
-    #[TagProperty(tag: 'input', position: 'header', rename: 'x-oss-int', type: 'int')]
+    #[TagHeader(rename: 'x-oss-int', type: 'int')]
     private ?int $intHeader;
 
-    #[TagProperty(tag: 'input', position: 'header', rename: 'x-oss-bool', type: 'bool')]
+    #[TagHeader(rename: 'x-oss-bool', type: 'bool')]
     private ?bool $boolHeader;
 
-    #[TagProperty(tag: 'input', position: 'header', rename: 'x-oss-float', type: 'float')]
+    #[TagHeader(rename: 'x-oss-float', type: 'float')]
     private ?float $floatHeader;
 
-    #[TagProperty(tag: 'input', position: 'header', rename: 'x-oss-isotime', type: 'Datetime')]
+    #[TagHeader(rename: 'x-oss-isotime', type: 'Datetime')]
     private ?\Datetime $isotimeHeader;
 
-    #[TagProperty(tag: 'input', position: 'header', rename: 'x-oss-httptime', type: 'Datetime', format:'httptime')]
+    #[TagHeader(rename: 'x-oss-httptime', type: 'Datetime', format:'httptime')]
     private ?\Datetime $httptimeHeader;
 
-    #[TagProperty(tag: 'input', position: 'header', rename: 'x-oss-unixtime', type: 'Datetime', format:'unixtime')]
+    #[TagHeader(rename: 'x-oss-unixtime', type: 'Datetime', format:'unixtime')]
     private ?\Datetime $unixtimeHeader;
 
-    #[TagProperty(tag: 'input', position: 'query', rename: 'param-str', type: 'string')]
+    #[TagQuery(rename: 'param-str', type: 'string')]
     private ?string $strParam;
 
-    #[TagProperty(tag: 'input', position: 'query', rename: 'param-int', type: 'int')]
+    #[TagQuery(rename: 'param-int', type: 'int')]
     private ?int $intParam;
 
-    #[TagProperty(tag: 'input', position: 'query', rename: 'param-bool', type: 'bool')]
+    #[TagQuery(rename: 'param-bool', type: 'bool')]
     private ?bool $boolParam;
 
-    #[TagProperty(tag: 'input', position: 'query', rename: 'param-float', type: 'float')]
+    #[TagQuery(rename: 'param-float', type: 'float')]
     private ?float $floatParam;
 
-    #[TagProperty(tag: 'input', position: 'query', rename: 'param-isotime', type: 'Datetime')]
+    #[TagQuery(rename: 'param-isotime', type: 'Datetime')]
     private ?\Datetime $isotimeParam;
 
-    #[TagProperty(tag: 'input', position: 'query', rename: 'param-httptime', type: 'Datetime', format:'httptime')]
+    #[TagQuery(rename: 'param-httptime', type: 'Datetime', format:'httptime')]
     private ?\Datetime $httptimeParam;
 
-    #[TagProperty(tag: 'input', position: 'query', rename: 'param-unixtime', type: 'Datetime', format:'unixtime')]
+    #[TagQuery(rename: 'param-unixtime', type: 'Datetime', format:'unixtime')]
     private ?\Datetime $unixtimeParam;
 
-    #[TagProperty(tag: 'input', position: 'body', rename: 'Configuration', type: 'xml')]
+    #[TagBody(rename: 'Configuration', type: 'xml')]
     private ?RootConfiguration $configuration;
 
     public function __construct(

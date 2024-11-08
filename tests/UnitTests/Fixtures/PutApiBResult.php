@@ -4,23 +4,23 @@ namespace UnitTests\Fixtures;
 
 use AlibabaCloud\Oss\V2\Types\ModelTrait;
 use AlibabaCloud\Oss\V2\Types\ResultModel;
-use AlibabaCloud\Oss\V2\Annotation\TagProperty;
+use AlibabaCloud\Oss\V2\Annotation\TagHeader;
 use AlibabaCloud\Oss\V2\Annotation\XmlElement;
 
 class PutApiBResult  extends ResultModel
 {
     use ModelTrait;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-str', type: 'string')]
+    #[TagHeader(rename: 'x-oss-str', type: 'string')]
     private ?string $strHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-int', type: 'int')]
+    #[TagHeader(rename: 'x-oss-int', type: 'int')]
     private ?int $intHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-bool', type: 'bool')]
+    #[TagHeader(rename: 'x-oss-bool', type: 'bool')]
     private ?bool $boolHeader;
 
-    #[TagProperty(tag: 'output', position: 'header', rename: 'x-oss-float', type: 'float')]
+    #[TagHeader(rename: 'x-oss-float', type: 'float')]
     private ?float $floatHeader;
 
     #[XmlElement(rename: 'Id', type: 'string')]

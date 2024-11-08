@@ -207,12 +207,8 @@ final class Deserializer
         $usermetas = [];
         $ro = new \ReflectionObject($result);
         foreach ($ro->getProperties() as $property) {
-            $annotation = Functions::getTagAnnotation($property);
-            if (
-                $annotation == null ||
-                $annotation->tag !== 'output' ||
-                $annotation->position !== 'header'
-            ) {
+            $annotation = Functions::getHeaderAnnotation($property);
+            if ($annotation == null) {
                 continue;
             }
 
@@ -265,12 +261,8 @@ final class Deserializer
 
         $ro = new \ReflectionObject($result);
         foreach ($ro->getProperties() as $property) {
-            $annotation = Functions::getTagAnnotation($property);
-            if (
-                $annotation == null ||
-                $annotation->tag !== 'output' ||
-                $annotation->position !== 'body'
-            ) {
+            $annotation = Functions::getBodyAnnotation($property);
+            if ($annotation == null) {
                 continue;
             }
 
