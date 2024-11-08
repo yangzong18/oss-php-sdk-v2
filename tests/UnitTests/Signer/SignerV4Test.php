@@ -180,7 +180,7 @@ class SignerV4Test extends \PHPUnit\Framework\TestCase
         $this->assertEquals('599', $parsedQuery['x-oss-expires']);
         $this->assertEquals('ak/20231217/cn-hangzhou/oss/aliyun_v4_request', $parsedQuery['x-oss-credential']);
         $this->assertEquals('a39966c61718be0d5b14e668088b3fa07601033f6518ac7b523100014269c0fe', $parsedQuery['x-oss-signature']);
-        $this->assertEquals('', $parsedQuery['x-oss-additional-headers']);
+        $this->assertFalse(array_key_exists('x-oss-additional-headers',$parsedQuery));
     }
 
     public function testAuthQueryToken()
@@ -215,7 +215,7 @@ class SignerV4Test extends \PHPUnit\Framework\TestCase
         $this->assertEquals('599', $parsedQuery['x-oss-expires']);
         $this->assertEquals('ak/20231217/cn-hangzhou/oss/aliyun_v4_request', $parsedQuery['x-oss-credential']);
         $this->assertEquals('3817ac9d206cd6dfc90f1c09c00be45005602e55898f26f5ddb06d7892e1f8b5', $parsedQuery['x-oss-signature']);
-        $this->assertEquals('', $parsedQuery['x-oss-additional-headers']);
+        $this->assertFalse(array_key_exists('x-oss-additional-headers',$parsedQuery));
     }
 
     public function testAuthQueryWithAdditionalHeaders()
