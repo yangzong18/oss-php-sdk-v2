@@ -11,6 +11,9 @@
     <testsuite name="UnitTest">
       <directory>./tests/UnitTests</directory>
     </testsuite>
+    <testsuite name="IntegrationTests">
+      <directory>./tests/IntegrationTests</directory>
+    </testsuite>    
   </testsuites>
   <source>
     <include>

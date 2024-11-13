@@ -1,6 +1,6 @@
 <?php
 
-namespace UnitTests\Types;
+namespace UnitTests;
 
 use Psr\Http\Message\StreamInterface;
 use AlibabaCloud\Oss\V2\Utils;

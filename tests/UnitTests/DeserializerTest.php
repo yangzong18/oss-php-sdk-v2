@@ -1,6 +1,6 @@
 <?php
 
-namespace UnitTests\Types;
+namespace UnitTests;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'BaiscTypeXml.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'BaiscTypeListXml.php';
