@@ -80,4 +80,19 @@ final class Utils
         }
         return $value;
     }
+
+    /**
+     * Check if the endpoint is in the IPv4 format, such as xxx.xxx.xxx.xxx:port or xxx.xxx.xxx.xxx.
+     */
+    public static function isIPFormat($endpoint): bool
+    {
+        $ip_array = explode(":", $endpoint);
+        $hostname = $ip_array[0];
+        $ret = filter_var($hostname, \FILTER_VALIDATE_IP);
+        if (!$ret) {
+            return false;
+        } else {
+            return true;
+        }
+    }    
 }

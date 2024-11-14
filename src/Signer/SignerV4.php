@@ -27,6 +27,10 @@ class SignerV4 implements SignerInterface
             throw new \InvalidArgumentException("SigningContext Credentials is null or empty.");
         }
 
+        if (empty($signingCtx->region)) {
+            throw new \InvalidArgumentException("SigningContext Region is empty.");
+        }
+
         if ($signingCtx->request === null) {
             throw new \InvalidArgumentException("SigningContext Request is null.");
         }
