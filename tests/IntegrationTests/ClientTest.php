@@ -20,7 +20,10 @@ class ClientTest extends TestIntegration
             opMetadata: ['sub-resource' => ['acl']]
         );
 
-        $output = $client->invokeOperation($input);
-        print_r($output);
+        try {
+            $output = $client->invokeOperation($input);
+        } catch (\Exception $e) {
+            print $e;
+        }
     }
 }

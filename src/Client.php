@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AlibabaCloud\Oss\V2;
 
 use GuzzleHttp;
+use AlibabaCloud\Oss\V2\Exception\ServiceError;
 
 final class Client
 {
@@ -200,6 +201,18 @@ final class Client
         $stack = new GuzzleHttp\HandlerStack($handler);
 
         // retryer
+        $stack->push(static function (callable $handler): callable {
+            return static function ($request, array $options) use ($handler) {
+                return $handler($request, $options)->then(
+                    static function (\Psr\Http\Message\ResponseInterface $response) use ($options) {
+                        return $response;
+                    },
+                    static function (\Throwable $reason) use ($request, $options): GuzzleHttp\Promise\PromiseInterface {
+                        return GuzzleHttp\Promise\Create::rejectionFor($reason);
+                    }
+                );
+            };
+        }, 'retryer');
 
         // signer
         $stack->push(static function (callable $handler): callable {
@@ -213,7 +226,7 @@ final class Client
                     } catch (\Exception $e) {
                         throw new Exception\CredentialsFetchError($e);
                     }
-        
+
                     if (!$cred->hasKeys()) {
                         throw new Exception\CredentialsEmptyError();
                     }
@@ -235,10 +248,15 @@ final class Client
                     return $handler($request, $options);
                 }
                 return $handler($request, $options)->then(
-                    static function (\Psr\Http\Message\ResponseInterface $response) use ($options) {
+                    static function (\Psr\Http\Message\ResponseInterface $response) use ($request, $options) {
                         foreach ($options['response_handlers'] as $h) {
-                            $h($response, $options);
+                            if (\is_callable($h)) {
+                                $h($request, $response, $options);
+                            } else {
+                                call_user_func($h, $request, $response, $options);
+                            }
                         }
+                        return $response;
                     }
                 );
             };
@@ -285,7 +303,7 @@ final class Client
             array_push($paths, Utils::urlEncode($input->getKey(), true));
         }
 
-        return $uri->withPath('/'.implode('/', $paths));
+        return $uri->withPath('/' . implode('/', $paths));
     }
 
     private function buildRequestContext(OperationInput &$input, array &$options)
@@ -345,6 +363,73 @@ final class Client
 
         $context['signing_context'] = $signingContext;
 
+        // response-handler
+        $responseHandlers = [
+            [Client::class, 'httpErrors'],
+        ];
+
+        $context['response_handlers'] = $responseHandlers;
+
         return [$request, $context];
+    }
+
+    private static function httpErrors(
+        \Psr\Http\Message\RequestInterface $request,
+        \Psr\Http\Message\ResponseInterface $response,
+        array $options
+    ) {
+        $statusCode = $response->getStatusCode();
+        if (intval($statusCode / 100) == 2) {
+            return;
+        }
+        $content = $response->getBody()->getContents();
+        $code = 'BadErrorResponse';
+        $message = '';
+        $ec = '';
+        $requestId = '';
+        $errorFileds = [];
+
+        $xmlStr = $content;
+        if ($xmlStr === '' && $response->hasHeader('x-oss-err')) {
+            $xmlStr = base64_decode($response->getHeader('x-oss-err')[0]);
+        }
+
+        if (str_contains($xmlStr, '<Error>')) {
+            $xml = simplexml_load_string($xmlStr);
+            if (false === $xml) {
+                $message = 'Failed to parse xml from response body, part response body ' . substr($xmlStr, 0, 256);
+            }
+            $code = $xml->Message ?? $code;
+            $message = $xml->Message ?? '';
+            $ec = $xml->EC ?? '';
+            $requestId = $xml->RequestId ?? '';
+            foreach ($xml as $key => $val) {
+                $errorFileds[$key] = (string)$val;
+            }
+        } else {
+            $message = 'Not found tag <Error>, part response body ' . substr($xmlStr, 0, 256);;
+        }
+
+        if ($requestId == '' && $response->hasHeader('x-oss-request-id')) {
+            $requestId = $response->getHeader('x-oss-request-id')[0];
+        }
+
+        if ($ec == '' && $response->hasHeader('x-oss-ec')) {
+            $ec = $response->getHeader('x-oss-ec')[0];
+        }
+
+        throw new ServiceError(
+            [
+                'status_code' => $statusCode,
+                'request_id' => $requestId,
+                'code' => $code,
+                'message' => $message,
+                'ec' => $ec,
+                'request_target' => $request->getMethod() . ' ' . $request->getUri(),
+                'snapshot' => $content,
+                'headers' => $response->getHeaders(),
+                'error_fileds' => $errorFileds
+            ]
+        );
     }
 }
