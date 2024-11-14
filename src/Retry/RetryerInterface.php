@@ -7,9 +7,9 @@ namespace AlibabaCloud\Oss\V2\Retry;
 
 interface RetryerInterface
 {
-    public function isErrorRetryable(\Exception $error): bool;
+    public function isErrorRetryable(\Throwable $reason): bool;
 
     public function maxAttempts(): int;
 
-    public function retryDelay(int $attempt, \Exception $error): float;
+    public function retryDelay(int $attempt, \Throwable $reason): float;
 }

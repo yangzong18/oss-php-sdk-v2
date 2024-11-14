@@ -201,18 +201,45 @@ final class Client
         $stack = new GuzzleHttp\HandlerStack($handler);
 
         // retryer
-        $stack->push(static function (callable $handler): callable {
-            return static function ($request, array $options) use ($handler) {
-                return $handler($request, $options)->then(
-                    static function (\Psr\Http\Message\ResponseInterface $response) use ($options) {
-                        return $response;
-                    },
-                    static function (\Throwable $reason) use ($request, $options): GuzzleHttp\Promise\PromiseInterface {
-                        return GuzzleHttp\Promise\Create::rejectionFor($reason);
-                    }
-                );
-            };
-        }, 'retryer');
+        $stack->push(RetryMiddleware::create(
+            static function (
+                int $retries,
+                \Psr\Http\Message\RequestInterface $request,
+                \Throwable $reason,
+                array $options
+            ) {
+
+                if (!$request->getBody()->isSeekable()) {
+                    return false;
+                }
+
+                if ($retries + 1 >= $options['sdk_context']['retry_max_attempts']) {
+                    return false;
+                }
+
+                // api's timeout
+
+
+                // retryable error
+                if (!$options['sdk_context']['retryer']->isErrorRetryable($reason)) {
+                    return false;
+                }
+
+                // reset state
+                $request->getBody()->rewind();
+                if ($options['sdk_context']['reset_time']) {
+                    $options['signing_context']->time = null;
+                }
+
+                //printf("retry cnt %d, %d\n", $retries, $options['sdk_context']['retry_max_attempts']);
+                return true;
+            },
+            static function (int $retries, array $options): int {
+                //int in milliseconds
+                $delay = $options['sdk_context']['retryer']->retryDelay($retries, null);
+                return (int)($delay * 1000);
+            },
+        ), 'retryer');
 
         // signer
         $stack->push(static function (callable $handler): callable {
@@ -321,13 +348,15 @@ final class Client
         }
 
         // sdk's part
+        $retry_max_attempts = $options['retry_max_attempts'] ?? $this->sdkOptions['retry_max_attempts'];
         $sdk_context = [
-            'retry_max_attempts' => $options['retry_max_attempts'] ?? $this->sdkOptions['retry_max_attempts'],
+            'retry_max_attempts' => \max($retry_max_attempts, 1),
             'retryer' => $options['retryer'] ?? $this->sdkOptions['retryer'],
             'signer' => $this->sdkOptions['signer'],
             'credentials_provider' => $this->sdkOptions['credentials_provider'],
         ];
         $context['sdk_context'] = $sdk_context;
+
 
         // Requst
         // host & path & query
@@ -362,6 +391,8 @@ final class Client
         // signing time from user
 
         $context['signing_context'] = $signingContext;
+
+        $context['sdk_context']['reset_time'] = $signingContext->time == null;
 
         // response-handler
         $responseHandlers = [

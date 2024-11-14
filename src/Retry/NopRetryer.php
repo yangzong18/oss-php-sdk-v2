@@ -6,7 +6,7 @@ namespace AlibabaCloud\Oss\V2\Retry;
 
 class NopRetryer implements RetryerInterface
 {
-    public function isErrorRetryable(\Exception $error): bool
+    public function isErrorRetryable(\Throwable $reason): bool
     {
         return false;
     }
@@ -16,7 +16,7 @@ class NopRetryer implements RetryerInterface
         return 1;
     }
 
-    public function retryDelay(int $attempt, \Exception $error): float
+    public function retryDelay(int $attempt, \Throwable $reason): float
     {
         throw new \Exception("NotImplemented");
     }
