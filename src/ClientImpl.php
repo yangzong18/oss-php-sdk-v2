@@ -54,7 +54,7 @@ final class ClientImpl
                 return new OperationOutput(
                     status: $response->getReasonPhrase(),
                     statusCode: $response->getStatusCode(),
-                    headers: $response->getHeaders(),
+                    headers: Utils::toSimpleArray($response->getHeaders()),
                     body: $response->getBody(),
                     opInput: $input,
                     httpResponse: $response,
@@ -339,20 +339,20 @@ final class ClientImpl
 
     private function verifyOperation(OperationInput &$input)
     {
-        if (isset($this->sdkOptions['endpoint'])) {
+        if (!isset($this->sdkOptions['endpoint'])) {
             throw new \InvalidArgumentException('endpoint is invalid.');
         }
 
         if (
             $input->getBucket() != null &&
-            Validation::isValidBucketName($input->getBucket())
+            !Validation::isValidBucketName($input->getBucket())
         ) {
             throw new \InvalidArgumentException('Bucket name is invalid, got ' . $input->getBucket());
         }
 
         if (
             $input->getKey() != null &&
-            Validation::isValidObjectName($input->getKey())
+            !Validation::isValidObjectName($input->getKey())
         ) {
             throw new \InvalidArgumentException('Object name is invalid, got ' . $input->getKey());
         }

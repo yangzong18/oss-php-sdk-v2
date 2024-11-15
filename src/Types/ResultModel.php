@@ -8,13 +8,13 @@ use AlibabaCloud\Oss\V2\Types\Model;
 
 class ResultModel extends Model
 {
-    protected string $status = '';
+    public string $status = '';
 
-    protected int $statusCode = 0;
+    public int $statusCode = 0;
 
-    protected string $requestId = '';
+    public string $requestId = '';
 
-    protected array $headers = [];
+    public array $headers = [];
 
     public function __construct(array $options = []) {
         if (\is_array($options) && !empty($options)) {

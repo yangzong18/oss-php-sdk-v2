@@ -94,5 +94,21 @@ final class Utils
         } else {
             return true;
         }
-    }    
+    }
+
+    /**
+     * change array[string => string[]] to array[string => string]
+     */
+    public static function toSimpleArray(array $value): array
+    {
+        $result = [];
+        foreach ($value as $k => $vv) {
+            if (\is_array($vv)) {
+                $result[$k] =  $vv[0];
+            } else {
+                $result[$k] =  $vv;
+            }
+        }
+        return  $result;
+    }
 }
