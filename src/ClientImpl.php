@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace AlibabaCloud\Oss\V2;
 
+use AlibabaCloud\Oss\V2\Exception\OperationException;
 use GuzzleHttp;
-use AlibabaCloud\Oss\V2\Exception\ServiceError;
 
 final class ClientImpl
 {
@@ -45,7 +45,7 @@ final class ClientImpl
         $this->applyOptions();
     }
 
-    public function invokeOperationAsync(OperationInput $input, array $options = []): GuzzleHttp\Promise\PromiseInterface
+    public function executeAsync(OperationInput &$input, array &$options = []): GuzzleHttp\Promise\PromiseInterface
     {
         $this->verifyOperation($input);
         [$request, $context] = $this->buildRequestContext($input, $options);
@@ -59,6 +59,12 @@ final class ClientImpl
                     opInput: $input,
                     httpResponse: $response,
                 );
+            },
+            function ($reason) use ($input) {
+                return GuzzleHttp\Promise\Create::rejectionFor(new OperationException(
+                    $input->getOpName(),
+                    $reason
+                ));
             }
         );
     }
@@ -248,18 +254,17 @@ final class ClientImpl
         // signer
         $stack->push(static function (callable $handler): callable {
             return static function (\Psr\Http\Message\RequestInterface $request, array $options) use ($handler) {
-                #var_dump($options);
                 $sdk_context = $options['sdk_context'];
                 $provider = $sdk_context['credentials_provider'];
                 if (!($provider instanceof Credentials\AnonymousCredentialsProvider)) {
                     try {
                         $cred = $provider->getCredentials();
                     } catch (\Exception $e) {
-                        throw new Exception\CredentialsFetchError($e);
+                        throw new Exception\CredentialsException('Fetch Credentials raised an exception', $e);
                     }
 
-                    if (!$cred->hasKeys()) {
-                        throw new Exception\CredentialsEmptyError();
+                    if ($cred == null || !$cred->hasKeys()) {
+                        throw new \InvalidArgumentException("Credentials is null or empty.");
                     }
                     $signer = $sdk_context['signer'];
                     $signingContext = $options['signing_context'];
@@ -474,7 +479,7 @@ final class ClientImpl
             $ec = $response->getHeader('x-oss-ec')[0];
         }
 
-        throw new ServiceError(
+        throw new Exception\ServiceException(
             [
                 'status_code' => $statusCode,
                 'request_id' => $requestId,

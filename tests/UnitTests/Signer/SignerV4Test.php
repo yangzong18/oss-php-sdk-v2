@@ -144,6 +144,16 @@ class SignerV4Test extends \PHPUnit\Framework\TestCase
             $signer = new SignerV4();
             $signer->sign($signCtx);
         } catch (\Exception $e) {
+            $this->assertSame("SigningContext Region is empty.", $e->getMessage());
+        }
+
+        try {
+            $provider = new StaticCredentialsProvider("ak", "sk");
+            $cred = $provider->getCredentials();
+            $signCtx = new SigningContext(credentials: $cred, region: 'cn-hangzhou');
+            $signer = new SignerV4();
+            $signer->sign($signCtx);
+        } catch (\Exception $e) {
             $this->assertSame("SigningContext Request is null.", $e->getMessage());
         }
     }

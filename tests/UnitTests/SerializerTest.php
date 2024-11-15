@@ -353,7 +353,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         try {
             Serializer::serializeInput($request, $input);
             $this->assertTrue(false, "shoud not here");
-        } catch (ParamRequiredExecption $e) {
+        } catch (\InvalidArgumentException $e) {
             $this->assertStringContainsString("missing required field, key", (string)$e);
         } catch (\Exception $e) {
             $this->assertTrue(false, "shoud not here");

@@ -7,9 +7,7 @@ namespace AlibabaCloud\Oss\V2;
 use GuzzleHttp\Promise\PromiseInterface;
 
 /**
- * Object Storage Service(OSS)'s client class, which wraps all OSS APIs user could call to talk to OSS.
- * Users could do operations on bucket, object, including MultipartUpload or setting ACL via an OSSClient instance.
- * For more details, please check out the OSS API document:https://www.alibabacloud.com/help/doc-detail/31947.htm
+ * Client used to interact with **Alibaba Cloud Object Storage Service (OSS)**.
  *
  * @method Models\GetBucketAclResult getBucketAcl(Models\GetBucketAclRequest $request, array $args = [])
  * @method \GuzzleHttp\Promise\Promise getBucketAclAsync(Models\GetBucketAclRequest $request, array $args = [])
@@ -25,27 +23,36 @@ final class Client
 
     public function invokeOperation(OperationInput $input, array $options = []): OperationOutput
     {
-        return $this->client->invokeOperationAsync($input, $options)->wait();
+        return $this->client->executeAsync($input, $options)->wait();
     }
 
     public function invokeOperationAsync(OperationInput $input, array $options = []): PromiseInterface
     {
-        return $this->client->invokeOperationAsync($input, $options);
+        return $this->client->executeAsync($input, $options);
     }
 
-    public function __call($name, $args)
+    public function __call($name, $args): mixed
     {
         if (substr($name, -5) === 'Async') {
             $name = substr($name, 0, -5);
             $isAsync = true;
         }
 
-        #var_dump($args);
+        // api name
+        $opName = ucfirst($name);
+        $fromFunc = 'from' . $opName;
+        $toFunc = 'to' . $opName;
+
+        if (
+            !\method_exists(Transform::class, $fromFunc) ||
+            !\method_exists(Transform::class, $toFunc)
+        ) {
+            throw new \BadMethodCallException('Not implement ' . self::class . '::' . $name);
+        }
 
         // args, {Operation}Request request, array options
-        $request = isset($args[0])? $args[0]: [];
+        $request = isset($args[0]) ? $args[0] : [];
         $options = count($args) > 1 ? $args[1] : [];
-        $opName = ucfirst($name);
 
         if (!($request instanceof Types\RequestModel)) {
             throw new \InvalidArgumentException('args[0] is not subclass of RequestModel, got ' . \gettype($request));
@@ -55,15 +62,15 @@ final class Client
             $options = [];
         }
 
-        $input = call_user_func([Transform::class, 'from' . $opName], $request);
-
         // execute
-        $promise = $this->client->invokeOperationAsync($input, $options)->then(
-            function (OperationOutput $output) use ($opName) {
-                return call_user_func([Transform::class, 'to' . $opName], $output);
+        $input = call_user_func([Transform::class, $fromFunc], $request);
+        $promise = $this->client->executeAsync($input, $options)->then(
+            function (OperationOutput $output) use ($toFunc) {
+                return call_user_func([Transform::class, $toFunc], $output);
             }
         );
 
+        // result
         return !empty($isAsync) ?  $promise : $promise->wait();
     }
 }

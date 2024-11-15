@@ -7,7 +7,7 @@ namespace AlibabaCloud\Oss\V2\Exception;
 /**
  * Represents an error is encountered during serialization.
  */
-class SerializationExecption extends \Exception
+class SerializationExecption extends \RuntimeException
 {
     public function __construct(string $messge)
     {

@@ -158,7 +158,7 @@ final class Serializer
             $val = $property->getValue($request);
             if (!isset($val)) {
                 if (Functions::isRequiredProperty($property)) {
-                    throw new ParamRequiredExecption($property->getName());
+                    throw new \InvalidArgumentException('missing required field, ' . $property->getName() . '.');
                 }
                 continue;
             }

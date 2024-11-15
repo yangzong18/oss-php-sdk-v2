@@ -5,36 +5,30 @@ declare(strict_types=1);
 namespace AlibabaCloud\Oss\V2\Exception;
 
 /**
- * Represents a service error.
+ * Represents a exception when an error is returned by oss server.
  */
-class ServiceError extends \Exception
+class ServiceException extends \RuntimeException
 {
     private $details;
 
     public function __construct($details)
     {
+        $message = $details;
         if (\is_array($details)) {
             $this->details = $details;
+            $message = "Error returned by Service.\n" .
+                "Http Status Code: " . $this->getStatusCode() . "\n" .
+                "Error Code: " . $this->getErrorCode() . "\n" .
+                "Request Id: " . $this->getRequestId() . "\n" .
+                "Message: " . $this->getErrorMessage() . "\n" .
+                "EC: " . $this->getEC() . "\n" .
+                "Timestamp: " . $this->getHeader('Date') . "\n" .
+                "Request Endpoint: " . $this->getRequestTarget();
         } else {
             $this->details = [];
-            parent::__construct($details);
-        }
-    }
-
-    public function __toString(): string
-    {
-        if (empty($this->details)) {
-            return parent::__toString();
         }
 
-        return "Error returned by Service.\n" .
-            "Http Status Code: " . $this->getStatusCode() . "\n" .
-            "Error Code: " . $this->getErrorCode() . "\n" .
-            "Request Id: " . $this->getRequestId() . "\n" .
-            "Message: " . $this->getErrorMessage() . "\n" .
-            "EC: " . $this->getEC() . "\n" .
-            "Timestamp: " . $this->getHeader('Date') . "\n" .
-            "Request Endpoint: " . $this->getRequestTarget();
+        parent::__construct($message);
     }
 
     public function getStatusCode()
