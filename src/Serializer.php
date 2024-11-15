@@ -10,7 +10,6 @@ use AlibabaCloud\Oss\V2\OperationInput;
 use AlibabaCloud\Oss\V2\Types\Model;
 use AlibabaCloud\Oss\V2\Types\RequestModel;
 use AlibabaCloud\Oss\V2\Annotation\Functions;
-use AlibabaCloud\Oss\V2\Exception\ParamRequiredExecption;
 use AlibabaCloud\Oss\V2\Exception\SerializationExecption;
 use AlibabaCloud\Oss\V2\Utils;
 
