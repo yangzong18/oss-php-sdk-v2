@@ -18,7 +18,6 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 
 use AlibabaCloud\Oss\V2\OperationInput;
 use AlibabaCloud\Oss\V2\Serializer;
 use AlibabaCloud\Oss\V2\Utils;
-use AlibabaCloud\Oss\V2\Exception\ParamRequiredExecption;
 
 use UnitTests\Fixtures\BaiscTypeXml;
 use UnitTests\Fixtures\BaiscTypeListXml;
@@ -679,6 +678,45 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         Serializer::serializeInput($request, $input);
         $this->assertEquals(1, count($input->getHeaders()));
         $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('str_param', $input->getParameters()['param-str']);
+    }
+
+    public static function addTestHeader($request, OperationInput $input): void
+    {
+        $input->setHeader('Serializer-Header', '12345');
+    }
+
+    public function testSerializeInputWithCustomSerializer(): void
+    {
+        # case 1
+        $request = new PutApiBRequest(
+            bucket: "bucket-124",
+            key: "key-1",
+            strHeader: "str_header",
+            strParam: "str_param",
+            arrayHeader: ['a' => 'value-1', 'b' => 'value-2'],
+        );
+
+        $input = new OperationInput(
+            opName: 'TestApi',
+            method: 'GET',
+            bucket: $request->getBucket(),
+            key: $request->getKey(),
+        );
+
+        $customSerializer = [
+            static function ($request, OperationInput $input) {
+                $input->setHeader('my-header', 'just test');
+            },
+            [self::class, 'addTestHeader'],
+        ];
+
+        Serializer::serializeInput($request, $input, $customSerializer);
+        $this->assertEquals('str_header', $input->getHeaders()['x-oss-str']);
+        $this->assertEquals('value-1', $input->getHeaders()['x-oss-prefix-a']);
+        $this->assertEquals('value-2', $input->getHeaders()['x-oss-prefix-b']);
+        $this->assertEquals('just test', $input->getHeaders()['my-header']);
+        $this->assertEquals('12345', $input->getHeaders()['serializer-header']);
         $this->assertEquals('str_param', $input->getParameters()['param-str']);
     }
 }

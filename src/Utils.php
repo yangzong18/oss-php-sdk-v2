@@ -30,6 +30,14 @@ final class Utils
         return Psr7\MimeType::fromFilename($name) ?? $default;
     }
 
+    /**
+     * Calculate a content-md5 of a stream.
+     */
+    public static function calcContentMd5(StreamInterface $stream): string
+    {
+        return base64_encode(Psr7\Utils::hash($stream, 'md5', true));
+    }
+
     public static function safetyBool(mixed $value): bool
     {
         if (($value === true) || ($value === 'true')) {

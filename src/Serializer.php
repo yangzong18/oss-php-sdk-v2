@@ -124,7 +124,7 @@ final class Serializer
         $writer->endElement();
     }
 
-    public static function serializeInput(RequestModel $request, OperationInput $input): OperationInput
+    public static function serializeInput(RequestModel $request, OperationInput $input, array $customSerializer = []): OperationInput
     {
         $ro = new \ReflectionObject($request);
 
@@ -202,6 +202,13 @@ final class Serializer
         }
 
         // custom serializer
+        foreach ($customSerializer as $serializer) {
+            if (\is_callable($serializer)) {
+                $serializer($request, $input);
+            } else {
+                call_user_func($serializer, $request, $input);
+            }
+        }
 
         return $input;
     }

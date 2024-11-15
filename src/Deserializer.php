@@ -193,7 +193,11 @@ final class Deserializer
 
         // custom deserializer
         foreach ($customDeserializer as $deserializer) {
-            call_user_func($deserializer, $result, $output);
+            if (\is_callable($deserializer)) {
+                $deserializer($result, $output);
+            } else {
+                call_user_func($deserializer, $result, $output);
+            }
         }
     }
 
