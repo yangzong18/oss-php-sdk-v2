@@ -188,7 +188,7 @@ class SignerV1 implements SignerInterface
         $query = Query::parse($request->getUri()->getQuery());
         if ($cred->getSecurityToken() !== '') {
             $query[self::SECURITY_TOKEN_QUERY] = $cred->getSecurityToken();
-            $request = $request->withUri($request->getUri()->withQuery(http_build_query($query)));
+            $request = $request->withUri($request->getUri()->withQuery(http_build_query($query, encoding_type: PHP_QUERY_RFC3986)));
             $signingCtx->request = $request;
         }
 
@@ -204,7 +204,7 @@ class SignerV1 implements SignerInterface
         $query[self::ACCESS_KEY_ID_QUERY] = $cred->getAccessKeyId();
         $query[self::SIGNATURE_QUERY] = $signature;
         ksort($query);
-        $request = $request->withUri($request->getUri()->withQuery(http_build_query($query)));
+        $request = $request->withUri($request->getUri()->withQuery(http_build_query($query, encoding_type: PHP_QUERY_RFC3986)));
         $signingCtx->request = $request;
     }
 

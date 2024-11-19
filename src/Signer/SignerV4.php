@@ -81,7 +81,7 @@ class SignerV4 implements SignerInterface
             $query['x-oss-additional-headers'] = implode(';', $additionalHeaders);
         }
         ksort($query);
-        $signingCtx->request = $request->withUri($request->getUri()->withQuery(http_build_query($query)));
+        $signingCtx->request = $request->withUri($request->getUri()->withQuery(http_build_query($query, encoding_type: PHP_QUERY_RFC3986)));
         // CanonicalRequest
         $canonicalRequest = $this->calcCanonicalRequest($signingCtx, $additionalHeaders);
 //        printf("canonicalRequest:%s" . PHP_EOL, $canonicalRequest);
@@ -95,7 +95,7 @@ class SignerV4 implements SignerInterface
         // Authorization query
         $query['x-oss-signature'] = $signature;
         ksort($query);
-        $request = $request->withUri($request->getUri()->withQuery(http_build_query($query)));
+        $request = $request->withUri($request->getUri()->withQuery(http_build_query($query, encoding_type: PHP_QUERY_RFC3986)));
         $signingCtx->request = $request;
     }
 

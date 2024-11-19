@@ -149,5 +149,20 @@ class SignerV1Test extends \PHPUnit\Framework\TestCase
         $uri = $request->getUri();
         $this->assertEquals($signUrl, (string)$uri);
         $this->assertEquals($signTime, $signCtx->time);
+
+        // case 3
+        $provider = new StaticCredentialsProvider("ak", "sk");
+        $cred = $provider->getCredentials();
+
+        $request = new Request("GET", "https://bucket.oss-cn-hangzhou.aliyuncs.com/key 123");
+        $signTime = DateTime::createFromFormat("D, d M Y H:i:s T", "Sun, 12 Nov 2023 16:43:40 GMT");
+        $signCtx = new SigningContext(bucket: "bucket", key: "key", request: $request, credentials: $cred, time: $signTime, authMethodQuery: true);
+        $signer = new SignerV1();
+        $signer->sign($signCtx);
+        $signUrl = "https://bucket.oss-cn-hangzhou.aliyuncs.com/key%20123?Expires=1699807420&OSSAccessKeyId=ak&Signature=tYKe4BGVXY%2FMIl5F0qSoNfAnpkk%3D";
+        $request = $signCtx->request;
+        $uri = $request->getUri();
+        $this->assertEquals($signUrl, (string)$uri);
+        $this->assertEquals($signTime, $signCtx->time);
     }
 }
