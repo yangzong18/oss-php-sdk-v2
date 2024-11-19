@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace AlibabaCloud\Oss\V2;
 
-use AlibabaCloud\Oss\V2\Exception\OperationException;
 use GuzzleHttp;
+use AlibabaCloud\Oss\V2\Defaults;
+use AlibabaCloud\Oss\V2\Exception;
 
 final class ClientImpl
 {
@@ -36,13 +37,13 @@ final class ClientImpl
     // guzzle 
     private GuzzleHttp\Client $httpClient;
     private $requestOptions = [
-        //GuzzleHttp\RequestOptions::ALLOW_REDIRECTS 
+        //GuzzleHttp\RequestOptions::ALLOW_REDIRECTS
         'allow_redirects' => false,
         //GuzzleHttp\RequestOptions::CONNECT_TIMEOUT 
-        'connect_timeout' => 10.0,
-        //GuzzleHttp\RequestOptions::READ_TIMEOUT 
-        'read_timeout' => 20.0,
-        //GuzzleHttp\RequestOptions::VERIFY 
+        'connect_timeout' => Defaults::CONNECT_TIMEOUT,
+        //GuzzleHttp\RequestOptions::READ_TIMEOUT
+        'read_timeout' => Defaults::READWRITE_TIMEOUT,
+        //GuzzleHttp\RequestOptions::VERIFY
         'verify' => true,
     ];
 
@@ -69,7 +70,7 @@ final class ClientImpl
                 );
             },
             function ($reason) use ($input) {
-                return GuzzleHttp\Promise\Create::rejectionFor(new OperationException(
+                return GuzzleHttp\Promise\Create::rejectionFor(new Exception\OperationException(
                     $input->getOpName(),
                     $reason
                 ));

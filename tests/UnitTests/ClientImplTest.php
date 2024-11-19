@@ -3,11 +3,14 @@
 namespace UnitTests;
 
 use AlibabaCloud\Oss\V2\Config;
+use AlibabaCloud\Oss\V2\OperationInput;
 use AlibabaCloud\Oss\V2\Signer;
 use AlibabaCloud\Oss\V2\Retry;
 use AlibabaCloud\Oss\V2\Credentials;
 use AlibabaCloud\Oss\V2\Utils;
 use AlibabaCloud\Oss\V2\ClientImpl;
+use AlibabaCloud\Oss\V2\Defaults;
+use AlibabaCloud\Oss\V2\Exception;
 use GuzzleHttp;
 
 class ClientImplTest extends \PHPUnit\Framework\TestCase
@@ -546,7 +549,7 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('query', $sdkOptions['auth_method']);
     }
 
-    public function testConfigProduct()
+    public function testConfigProduct(): void
     {
         //default 
         $cfg = Config::loadDefault();
@@ -570,4 +573,240 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
         $sdkOptions = $pSdkOptions->getValue($client);
         $this->assertEquals('oss-cloudbox', $sdkOptions['product']);
     }
+
+    public function testInvokeOperationOptions(): void
+    {
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+
+        //default
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+        );
+        $client->executeAsync($input)->wait();
+        $options = $mock->getLastOptions();
+        #GuzzleHttp's request options
+        $this->assertEquals(false, $options['allow_redirects']);
+        $this->assertEquals(Defaults::CONNECT_TIMEOUT, $options['connect_timeout']);
+        $this->assertEquals(Defaults::READWRITE_TIMEOUT, $options['read_timeout']);
+        $this->assertEquals(true, $options['verify']);
+        #sdk's request options
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $options['sdk_context']['retry_max_attempts']);
+        $this->assertInstanceOf(retry\StandardRetryer::class, $options['sdk_context']['retryer']);
+
+        // test retry_max_attempts & retryer
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $opt = [
+            'retry_max_attempts' => 4,
+            'retryer' => new Retry\NopRetryer(),
+        ];
+        $client->executeAsync($input, $opt)->wait();
+        $options = $mock->getLastOptions();
+        // GuzzleHttp's request options
+        $this->assertEquals(false, $options['allow_redirects']);
+        $this->assertEquals(Defaults::CONNECT_TIMEOUT, $options['connect_timeout']);
+        $this->assertEquals(Defaults::READWRITE_TIMEOUT, $options['read_timeout']);
+        $this->assertEquals(true, $options['verify']);
+        // sdk's request options
+        $this->assertEquals(4, $options['sdk_context']['retry_max_attempts']);
+        $this->assertInstanceOf(retry\NopRetryer::class, $options['sdk_context']['retryer']);
+
+        // test retryer
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $opt = [
+            'retryer' => new Retry\StandardRetryer(10),
+        ];
+        $client->executeAsync($input, $opt)->wait();
+        $options = $mock->getLastOptions();
+        $this->assertEquals(10, $options['sdk_context']['retry_max_attempts']);
+        $this->assertInstanceOf(retry\StandardRetryer::class, $options['sdk_context']['retryer']);
+
+        // test request options
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $opt = [
+            'allow_redirects' => true,
+            'connect_timeout' => 31.0,
+            'read_timeout' => 15.2,
+            'verify' => false,
+        ];
+        $client->executeAsync($input, $opt)->wait();
+        $options = $mock->getLastOptions();
+        // GuzzleHttp's request options
+        $this->assertEquals(true, $options['allow_redirects']);
+        $this->assertEquals(31.0, $options['connect_timeout']);
+        $this->assertEquals(15.2, $options['read_timeout']);
+        $this->assertEquals(false, $options['verify']);
+    }
+
+    public function testRequetContext(): void
+    {
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+
+        // user-agent
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+
+        $this->assertEquals(Utils::defaultUserAgent(), $request->getHeader('User-Agent')[0]);
+
+        // uri format
+        # virtual, no bucket and key, only bucket,  bucket and key
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://oss-cn-beijing.aliyuncs.com/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://my-bucket.oss-cn-beijing.aliyuncs.com/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket',
+            key: '123/321/+? /123.txt'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://my-bucket.oss-cn-beijing.aliyuncs.com/123/321/%2B%3F%20/123.txt', $request->getUri()->__tostring());
+
+        # cname, no bucket and key, only bucket,  bucket and key
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+        $cfg->setEndpoint('www.cname.com');
+        $cfg->setUseCname(true);
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://www.cname.com/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://www.cname.com/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket',
+            key: '123/321/+? /123.txt'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://www.cname.com/123/321/%2B%3F%20/123.txt', $request->getUri()->__tostring());
+
+        # path-style, no bucket and key, only bucket,  bucket and key
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+        $cfg->setUsePathStyle(true);
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://oss-cn-beijing.aliyuncs.com/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://oss-cn-beijing.aliyuncs.com/my-bucket/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket',
+            key: '123/321/+? /123.txt'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://oss-cn-beijing.aliyuncs.com/my-bucket/123/321/%2B%3F%20/123.txt', $request->getUri()->__tostring());
+
+        // uri format after signing
+        # signing header, bucket and key
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\StaticCredentialsProvider('ak', 'sk'));
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket',
+            key: '123/321/+? /123.txt'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://my-bucket.oss-cn-beijing.aliyuncs.com/123/321/%2B%3F%20/123.txt', $request->getUri()->__tostring());
+
+        # signing query, bucket and key
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\StaticCredentialsProvider('ak', 'sk'));
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock, 'auth_method' => 'query']);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket',
+            key: '123/321/+? /123.txt'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertStringContainsString('https://my-bucket.oss-cn-beijing.aliyuncs.com/123/321/%2B%3F%20/123.txt?x-oss-credential=ak', $request->getUri()->__tostring());
+    }
+
 }
