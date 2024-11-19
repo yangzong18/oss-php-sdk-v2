@@ -11,7 +11,7 @@ class NopRetryer implements RetryerInterface
         return false;
     }
 
-    public function maxAttempts(): int 
+    public function getMaxAttempts(): int
     {
         return 1;
     }

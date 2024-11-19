@@ -60,18 +60,100 @@ final class Config
      */
     private $proxyHost;
 
+
+    /**
+     * @var ?bool Dual-stack endpoints are provided in some regions.
+     */
+    private $useDualStackEndpoint;
+
+    /**
+     * @var ?bool OSS provides the transfer acceleration feature to accelerate date transfers
+     *            of data uploads and downloads across countries and regions.
+     *            Set this to True to use a accelerate endpoint for the requests.
+     */
+    private $useAccelerateEndpoint;
+
+    /**
+     * @var ?bool You can use an internal endpoint to communicate between Alibaba Cloud services located
+     *            within the same region over the internal network.
+     *            You are not charged for the traffic generated over the internal network.  
+     *            Set this to True to use a internal endpoint for the requests.
+     */
+    private $useInternalEndpoint;
+
+
+    /**
+     * @var ?bool If the endpoint is s CName, set this flag to true
+     */
+    private $useCname;
+
+    /**
+     * @var ?bool Allows you to enable the client to use path-style addressing, 
+     *            i.e., https://oss-cn-hangzhou.aliyuncs.com/bucket/key.
+     */
+    private $usePathStyle;
+
+    /**
+     * @var ?int Specifies the maximum number attempts an API client will call
+     *           an operation that fails with a retryable error.
+     */
+    private $retryMaxAttempts;
+
+    /**
+     * @var ?Retry\RetryerInterface Guides how HTTP requests should be retried in case of recoverable failures.
+     */
+    private $retryer;
+
+
+    /**
+     * @var ?string The optional user specific identifier appended to the User-Agent header.
+     */
+    private $userAgent;
+
+
+    /**
+     * @var ?array Additional signable headers.
+     */
+    private $additionalHeaders;
+
     public function __construct(
         string $region = null,
         string $endpoint = null,
         string $signatureVersion = null,
         CredentialsProvider $credentialsProvider = null,
-        ?bool $disableSSL = null
+        ?bool $disableSSL = null,
+        ?bool $insecureSkipVerify = null,
+        ?float $connectTimeout = null,
+        ?float $readwriteTimeout = null,
+        ?string $proxyHost = null,
+        ?bool $useDualStackEndpoint = null,
+        ?bool $useAccelerateEndpoint = null,
+        ?bool $useInternalEndpoint = null,
+        ?bool $useCname = null,
+        ?bool $usePathStyle = null,
+        ?int $retryMaxAttempts = null,
+        ?Retry\RetryerInterface $retryer = null,
+        ?string $userAgent = null,
+        ?array $additionalHeaders = null,
     ) {
         $this->region = $region;
         $this->endpoint = $endpoint;
         $this->signatureVersion = $signatureVersion;
         $this->credentialsProvider = $credentialsProvider;
         $this->disableSSL = $disableSSL;
+        $this->insecureSkipVerify = $insecureSkipVerify;
+        $this->connectTimeout = $connectTimeout;
+        $this->readwriteTimeout = $readwriteTimeout;
+        $this->proxyHost = $proxyHost;
+        $this->useDualStackEndpoint = $useDualStackEndpoint;
+        $this->useAccelerateEndpoint = $useAccelerateEndpoint;
+        $this->useInternalEndpoint = $useInternalEndpoint;
+        $this->useCname = $useCname;
+        $this->usePathStyle = $usePathStyle;
+        $this->retryMaxAttempts = $retryMaxAttempts;
+        $this->retryer = $retryer;
+        $this->userAgent = $userAgent;
+        $this->additionalHeaders = $additionalHeaders;
     }
 
     public static function loadDefault(): Config
@@ -216,7 +298,7 @@ final class Config
      *
      * @return  self
      */
-    public function setEnabledRedirect(?bool $enabledRedirect)
+    public function setEnabledRedirect(bool $enabledRedirect)
     {
         $this->enabledRedirect = $enabledRedirect;
 
@@ -240,7 +322,7 @@ final class Config
      *
      * @return  self
      */
-    public function setInsecureSkipVerify(?bool $insecureSkipVerify)
+    public function setInsecureSkipVerify(bool $insecureSkipVerify)
     {
         $this->insecureSkipVerify = $insecureSkipVerify;
 
@@ -264,7 +346,7 @@ final class Config
      *
      * @return  self
      */
-    public function setConnectTimeout(?float $connectTimeout)
+    public function setConnectTimeout(float $connectTimeout)
     {
         $this->connectTimeout = $connectTimeout;
 
@@ -288,7 +370,7 @@ final class Config
      *
      * @return  self
      */
-    public function setReadwriteTimeout(?float $readwriteTimeout)
+    public function setReadwriteTimeout(float $readwriteTimeout)
     {
         $this->readwriteTimeout = $readwriteTimeout;
 
@@ -312,9 +394,225 @@ final class Config
      *
      * @return  self
      */
-    public function setProxyHost(?string $proxyHost)
+    public function setProxyHost(string $proxyHost)
     {
         $this->proxyHost = $proxyHost;
+
+        return $this;
+    }
+
+    /**
+     * Get dual-stack endpoints are provided in some regions.
+     *
+     * @return  ?bool
+     */
+    public function getUseDualStackEndpoint()
+    {
+        return $this->useDualStackEndpoint;
+    }
+
+    /**
+     * Set dual-stack endpoints are provided in some regions.
+     *
+     * @param  ?bool  $useDualStackEndpoint  Dual-stack endpoints are provided in some regions.
+     *
+     * @return  self
+     */
+    public function setUseDualStackEndpoint(bool $useDualStackEndpoint)
+    {
+        $this->useDualStackEndpoint = $useDualStackEndpoint;
+
+        return $this;
+    }
+
+    /**
+     * Get oSS provides the transfer acceleration feature to accelerate date transfers
+     *
+     * @return  ?bool
+     */
+    public function getUseAccelerateEndpoint()
+    {
+        return $this->useAccelerateEndpoint;
+    }
+
+    /**
+     * Set oSS provides the transfer acceleration feature to accelerate date transfers
+     *
+     * @param  ?bool  $useAccelerateEndpoint  OSS provides the transfer acceleration feature to accelerate date transfers
+     *
+     * @return  self
+     */
+    public function setUseAccelerateEndpoint(bool $useAccelerateEndpoint)
+    {
+        $this->useAccelerateEndpoint = $useAccelerateEndpoint;
+
+        return $this;
+    }
+
+    /**
+     * Get you can use an internal endpoint to communicate between Alibaba Cloud services located
+     *
+     * @return  ?bool
+     */
+    public function getUseInternalEndpoint()
+    {
+        return $this->useInternalEndpoint;
+    }
+
+    /**
+     * Set you can use an internal endpoint to communicate between Alibaba Cloud services located
+     *
+     * @param  ?bool  $useInternalEndpoint  You can use an internal endpoint to communicate between Alibaba Cloud services located
+     *
+     * @return  self
+     */
+    public function setUseInternalEndpoint(bool $useInternalEndpoint)
+    {
+        $this->useInternalEndpoint = $useInternalEndpoint;
+
+        return $this;
+    }
+
+    /**
+     * Get if the endpoint is s CName, set this flag to true
+     *
+     * @return  ?bool
+     */
+    public function getUseCname()
+    {
+        return $this->useCname;
+    }
+
+    /**
+     * Set if the endpoint is s CName, set this flag to true
+     *
+     * @param  ?bool  $useCname  If the endpoint is s CName, set this flag to true
+     *
+     * @return  self
+     */
+    public function setUseCname(bool $useCname)
+    {
+        $this->useCname = $useCname;
+
+        return $this;
+    }
+
+    /**
+     * Get allows you to enable the client to use path-style addressing,
+     *
+     * @return  ?bool
+     */
+    public function getUsePathStyle()
+    {
+        return $this->usePathStyle;
+    }
+
+    /**
+     * Set allows you to enable the client to use path-style addressing,
+     *
+     * @param  ?bool  $usePathStyle  Allows you to enable the client to use path-style addressing,
+     *
+     * @return  self
+     */
+    public function setUsePathStyle(bool $usePathStyle)
+    {
+        $this->usePathStyle = $usePathStyle;
+
+        return $this;
+    }
+
+    /**
+     * Get specifies the maximum number attempts an API client will call
+     *
+     * @return  ?int
+     */
+    public function getRetryMaxAttempts()
+    {
+        return $this->retryMaxAttempts;
+    }
+
+    /**
+     * Set specifies the maximum number attempts an API client will call
+     *
+     * @param  ?int  $retryMaxAttempts  Specifies the maximum number attempts an API client will call
+     *
+     * @return  self
+     */
+    public function setRetryMaxAttempts(int $retryMaxAttempts)
+    {
+        $this->retryMaxAttempts = $retryMaxAttempts;
+
+        return $this;
+    }
+
+    /**
+     * Get guides how HTTP requests should be retried in case of recoverable failures.
+     *
+     * @return  ?Retry\RetryerInterface
+     */
+    public function getRetryer()
+    {
+        return $this->retryer;
+    }
+
+    /**
+     * Set guides how HTTP requests should be retried in case of recoverable failures.
+     *
+     * @param  ?Retry\RetryerInterface  $retryer  Guides how HTTP requests should be retried in case of recoverable failures.
+     *
+     * @return  self
+     */
+    public function setRetryer(Retry\RetryerInterface $retryer)
+    {
+        $this->retryer = $retryer;
+
+        return $this;
+    }
+
+    /**
+     * Get the optional user specific identifier appended to the User-Agent header.
+     *
+     * @return  ?string
+     */
+    public function getUserAgent()
+    {
+        return $this->userAgent;
+    }
+
+    /**
+     * Set the optional user specific identifier appended to the User-Agent header.
+     *
+     * @param  ?string  $userAgent  The optional user specific identifier appended to the User-Agent header.
+     *
+     * @return  self
+     */
+    public function setUserAgent(string $userAgent)
+    {
+        $this->userAgent = $userAgent;
+
+        return $this;
+    }
+
+    /**
+     * Get additional signable headers.
+     *
+     * @return  ?array
+     */
+    public function getAdditionalHeaders()
+    {
+        return $this->additionalHeaders;
+    }
+
+    /**
+     * Set additional signable headers.
+     *
+     * @param  ?array  $additionalHeaders  Additional signable headers.
+     *
+     * @return  self
+     */
+    public function setAdditionalHeaders(array $additionalHeaders)
+    {
+        $this->additionalHeaders = $additionalHeaders;
 
         return $this;
     }

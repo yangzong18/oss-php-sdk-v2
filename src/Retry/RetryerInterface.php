@@ -9,7 +9,7 @@ interface RetryerInterface
 {
     public function isErrorRetryable(\Throwable $reason): bool;
 
-    public function maxAttempts(): int;
+    public function getMaxAttempts(): int;
 
     public function retryDelay(int $attempt, \Throwable $reason): float;
 }

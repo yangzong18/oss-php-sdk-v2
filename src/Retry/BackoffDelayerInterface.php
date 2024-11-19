@@ -7,5 +7,11 @@ namespace AlibabaCloud\Oss\V2\Retry;
 
 interface BackoffDelayerInterface
 {
-    public function backoffDelay(int $attempt, \Exception $error): float;
+    /**
+     * Returns the delay that should be used before retrying the attempt.
+     * @param int $attempt current retry attempt
+     * @param \Throwable $reason the error meets
+     * @return float delay duration in second.
+     */    
+    public function backoffDelay(int $attempt, \Throwable $reason): float;
 }

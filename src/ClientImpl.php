@@ -16,17 +16,16 @@ final class ClientImpl
         'product' => 'oss',
         'region' => null,
         'endpoint' => null,
-        'retry_max_attempts' => 3,
+        'retry_max_attempts' => null,
         'retryer' => null,
         'signer' => null,
         'credentials_provider' => null,
         'address_style' => 'virtual',
-        'readwrite_timeout' => null,
-        'response_handlers' => null,
-        'response_stream' => null,
         'auth_method' => 'header',
+        'response_handlers' => null,
         'feature_flags' => 0,
         'additional_headers' => null,
+        'response_stream' => null,
     ];
 
     private $innerOptions = [
@@ -36,7 +35,16 @@ final class ClientImpl
 
     // guzzle 
     private GuzzleHttp\Client $httpClient;
-    private $requestOptions = [];
+    private $requestOptions = [
+        //GuzzleHttp\RequestOptions::ALLOW_REDIRECTS 
+        'allow_redirects' => false,
+        //GuzzleHttp\RequestOptions::CONNECT_TIMEOUT 
+        'connect_timeout' => 10.0,
+        //GuzzleHttp\RequestOptions::READ_TIMEOUT 
+        'read_timeout' => 20.0,
+        //GuzzleHttp\RequestOptions::VERIFY 
+        'verify' => true,
+    ];
 
     public function __construct(Config $config, array $options = [])
     {
@@ -75,6 +83,7 @@ final class ClientImpl
         $options = $this->sdkOptions;
         $options['region'] = $config->getRegion();
         $options['credentials_provider'] = $config->getCredentialsProvider();
+        $options['additional_headers'] = $config->getAdditionalHeaders();
         $this->resolveEndpoint($config, $options);
         $this->resolveRetryer($config, $options);
         $this->resolveSigner($config, $options);
@@ -87,7 +96,7 @@ final class ClientImpl
         $this->innerOptions['user_agent'] = $this->buildUserAgent($config);
 
         // guzzle's client
-        $options = [];
+        $options = $this->requestOptions;
         $this->resolveHttpClient($config, $options);
         $this->requestOptions = $options;
     }
@@ -100,6 +109,16 @@ final class ClientImpl
         if (\strlen($endpoint) > 0) {
             $endpoint = Utils::addScheme($endpoint, $disableSSL);
         } else if (Validation::isValidRegion($region)) {
+            if (Utils::safetyBool($config->getUseDualStackEndpoint())) {
+                $etype = 'dualstack';
+            } else if (Utils::safetyBool($config->getUseInternalEndpoint())) {
+                $etype = 'internal';
+            } else if (Utils::safetyBool($config->getUseAccelerateEndpoint())) {
+                $etype = 'accelerate';
+            } else {
+                $etype = 'default';
+            }
+            $endpoint = Utils::regionToEndpoint($region, $disableSSL, $etype);
         }
 
         if ($endpoint === '') {
@@ -111,17 +130,28 @@ final class ClientImpl
 
     private function resolveRetryer(Config &$config, array &$options)
     {
-        $options['retryer'] = new Retry\NopRetryer();
+        if (Utils::safetyInt($config->getRetryMaxAttempts()) > 0) {
+            $options['retry_max_attempts'] = $config->getRetryMaxAttempts();
+        }
+
+        $options['retryer'] = $config->getRetryer() ?? new Retry\StandardRetryer();
     }
 
     private function resolveSigner(Config &$config, array &$options)
     {
-        $options['signer'] = new Signer\SignerV4();
+        $value = Utils::safetyString($config->getSignatureVersion());
+        $options['signer'] = $value == 'v1' ? new Signer\SignerV1() : new Signer\SignerV4();
     }
 
     private function resolveAddressStyle(Config &$config, array &$options)
     {
-        $options['address_style'] = 'virtual';
+        if (Utils::safetyBool($config->getUseCname())) {
+            $options['address_style'] = 'cname';
+        } else if (Utils::safetyBool($config->getUsePathStyle())) {
+            $options['address_style'] = 'path';
+        } else {
+            $options['address_style'] = 'virtual';
+        }
     }
 
     private function resolveFeatureFlags(Config &$config, array &$options) {}
@@ -130,26 +160,31 @@ final class ClientImpl
     {
         // map into GuzzleHttp request options
         if (Utils::safetyBool($config->getEnabledRedirect())) {
-            $options[GuzzleHttp\RequestOptions::ALLOW_REDIRECTS] = true;
+            //GuzzleHttp\RequestOptions::ALLOW_REDIRECTS
+            $options['allow_redirects'] = true;
         }
 
         if (Utils::safetyBool($config->getInsecureSkipVerify())) {
-            $options[GuzzleHttp\RequestOptions::VERIFY] = false;
+            //GuzzleHttp\RequestOptions::VERIFY
+            $options['verify'] = false;
         }
 
         $value = $config->getConnectTimeout();
         if (Utils::safetyFloat($value) > 0) {
-            $options[GuzzleHttp\RequestOptions::CONNECT_TIMEOUT] = $value;
+            //GuzzleHttp\RequestOptions::CONNECT_TIMEOUT
+            $options['connect_timeout'] = $value;
         }
 
         $value = $config->getReadwriteTimeout();
         if (Utils::safetyFloat($value) > 0) {
-            $options[GuzzleHttp\RequestOptions::READ_TIMEOUT] = $value;
+            //GuzzleHttp\RequestOptions::READ_TIMEOUT
+            $options['read_timeout'] = $value;
         }
 
         $value = $config->getProxyHost();
         if (Utils::safetyString($value) !== '') {
-            $options[GuzzleHttp\RequestOptions::PROXY] = $value;
+            //GuzzleHttp\RequestOptions::PROXY
+            $options['proxy'] = $value;
         }
     }
 
@@ -198,13 +233,7 @@ final class ClientImpl
     {
         // GuzzleHttp\Client
         // request options
-        $config = [
-            GuzzleHttp\RequestOptions::ALLOW_REDIRECTS => false,
-            GuzzleHttp\RequestOptions::CONNECT_TIMEOUT => 10.0,
-            GuzzleHttp\RequestOptions::READ_TIMEOUT => 20.0,
-            GuzzleHttp\RequestOptions::VERIFY => true,
-        ];
-        $config = \array_merge($config, $this->requestOptions);
+        $config = \array_merge([], $this->requestOptions);
 
         // stack
         $handler = $this->innerOptions['handler'] ?: GuzzleHttp\Utils::chooseHandler();
@@ -309,7 +338,13 @@ final class ClientImpl
 
     private function buildUserAgent(Config &$config)
     {
-        return Utils::defaultUserAgent();
+        $value = Utils::defaultUserAgent();
+
+        if ($config->getUserAgent() != null) {
+            $value = $value . '/' . $config->getUserAgent();
+        }
+
+        return $value;
     }
 
     private function buildUri(OperationInput &$input): \Psr\Http\Message\UriInterface
@@ -377,14 +412,24 @@ final class ClientImpl
             $context['timeout'] =  $options['timeout'];
         }
 
+        // retry options for api
+        $retryer = $options['retryer'] ?? $this->sdkOptions['retryer'];
+        if (Utils::safetyInt($options['retry_max_attempts']) > 0) {
+            $retry_max_attempts = $options['retry_max_attempts'];
+        } else if (isset($this->sdkOptions['retry_max_attempts'])) {
+            $retry_max_attempts = $this->sdkOptions['retry_max_attempts'];
+        } else {
+            $retry_max_attempts = $retryer->getMaxAttempts();
+        }
+
         // sdk's part
-        $retry_max_attempts = $options['retry_max_attempts'] ?? $this->sdkOptions['retry_max_attempts'];
         $sdk_context = [
             'retry_max_attempts' => \max($retry_max_attempts, 1),
-            'retryer' => $options['retryer'] ?? $this->sdkOptions['retryer'],
+            'retryer' => $retryer,
             'signer' => $this->sdkOptions['signer'],
             'credentials_provider' => $this->sdkOptions['credentials_provider'],
         ];
+
         $context['sdk_context'] = $sdk_context;
 
 

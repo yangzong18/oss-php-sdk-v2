@@ -62,14 +62,52 @@ final class Utils
         return 0;
     }
 
+    public static function safetyInt(mixed $value): int
+    {
+        if ((int)$value === $value) {
+            return $value;
+        }
+        return 0;
+    }
+
     public static function addScheme(string $endpoint, bool $disableSsl): string
     {
+        $pattern = '/^([^:]+):\/\//';
+        if ($endpoint !== '' && !preg_match($pattern, $endpoint)) {
+            $scheme = Defaults::ENDPOINT_SCHEME;
+            if ($disableSsl === true) {
+                $scheme = 'http';
+            }
+            $endpoint = $scheme . '://' . $endpoint;
+        }
         return $endpoint;
     }
 
     public static function regionToEndpoint(string $region, bool $disableSsl, string $type): string
     {
-        return '';
+        $scheme = Defaults::ENDPOINT_SCHEME;
+        if ($disableSsl === true) {
+            $scheme = 'http';
+        }
+
+        switch ($type) {
+            case 'internal';
+                $endpoint = 'oss-' . $region . '-internal.aliyuncs.com';
+                break;
+            case 'dualstack';
+                $endpoint = $region . '.oss.aliyuncs.com';
+                break;
+            case 'accelerate';
+                $endpoint = 'oss-accelerate.aliyuncs.com';
+                break;
+            case 'overseas';
+                $endpoint = 'oss-accelerate-overseas.aliyuncs.com';
+            default:
+                $endpoint = 'oss-' . $region . '.aliyuncs.com';
+                break;
+        }
+
+        return $scheme . '://' . $endpoint;
     }
 
     public static function defaultUserAgent(): string
