@@ -504,14 +504,25 @@ final class ClientImpl
         if (str_contains($xmlStr, '<Error>')) {
             $xml = simplexml_load_string($xmlStr);
             if (false === $xml) {
-                $message = 'Failed to parse xml from response body, part response body ' . substr($xmlStr, 0, 256);
-            }
-            $code = $xml->Message ?? $code;
-            $message = $xml->Message ?? '';
-            $ec = $xml->EC ?? '';
-            $requestId = $xml->RequestId ?? '';
-            foreach ($xml as $key => $val) {
-                $errorFileds[$key] = (string)$val;
+                //maybe contains speical char, from 0x1 - 0x1F
+                //find <Code>...</Code> <Message>...</Message> <RequestId>...</RequestId> <EC>...</EC>
+                $value = Utils::findXmlElementText($xmlStr, 'Code');
+                if ($value !== '') {
+                    $code = $value;
+                    $message = Utils::findXmlElementText($xmlStr, 'Message');
+                    $requestId = Utils::findXmlElementText($xmlStr, 'RequestId');
+                    $ec = Utils::findXmlElementText($xmlStr, 'EC');
+                } else {
+                    $message = 'Failed to parse xml from response body, part response body ' . substr($xmlStr, 0, 256);
+                }
+            } else {
+                $code = $xml->Code ?? $code;
+                $message = $xml->Message ?? '';
+                $ec = $xml->EC ?? '';
+                $requestId = $xml->RequestId ?? '';
+                foreach ($xml as $key => $val) {
+                    $errorFileds[$key] = (string)$val;
+                }
             }
         } else {
             $message = 'Not found tag <Error>, part response body ' . substr($xmlStr, 0, 256);;

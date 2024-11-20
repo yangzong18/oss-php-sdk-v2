@@ -157,4 +157,23 @@ final class Utils
         }
         return  $result;
     }
+
+    /**
+     * change array[string => string[]] to array[string => string]
+     */
+    public static function findXmlElementText(string $xml, string $tag): string
+    {
+        $start = \strpos($xml, "<$tag>");
+        $len = strlen($tag) + 2;
+        if ($start === false) {
+            return '';
+        }
+
+        $end = \strpos($xml, "</$tag>", $start + $len);
+        if ($end === false) {
+            return '';
+        }
+
+        return \substr($xml, $start + $len, $end - $start - $len);
+    }
 }

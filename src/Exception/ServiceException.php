@@ -83,7 +83,10 @@ class ServiceException extends \RuntimeException
 
     public function getHeader(string $key): string
     {
-        if (isset($this->details['headers'])) {
+        if (
+            isset($this->details['headers']) &&
+            isset($this->details['headers'][$key])
+        ) {
             $v = $this->details['headers'][$key];
             if (\is_array($v)) {
                 return $v[0];

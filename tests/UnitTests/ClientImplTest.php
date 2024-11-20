@@ -639,10 +639,11 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
         $client->executeAsync($input, $opt)->wait();
         $options = $mock->getLastOptions();
         // GuzzleHttp's request options
-        $this->assertEquals(true, $options['allow_redirects']);
         $this->assertEquals(31.0, $options['connect_timeout']);
         $this->assertEquals(15.2, $options['read_timeout']);
-        $this->assertEquals(false, $options['verify']);
+        // can't be modified from api options.
+        $this->assertEquals(false, $options['allow_redirects']);
+        $this->assertEquals(true, $options['verify']);
     }
 
     public function testRequetContext(): void
@@ -809,4 +810,160 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
         $this->assertStringContainsString('https://my-bucket.oss-cn-beijing.aliyuncs.com/123/321/%2B%3F%20/123.txt?x-oss-credential=ak', $request->getUri()->__tostring());
     }
 
+    public function testHttpErrorsHandler(): void
+    {
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+        $cfg->setRetryer(new Retry\NopRetryer());
+
+        $body = '<?xml version="1.0" encoding="UTF-8"?>
+            <Error>
+                <Code>InvalidAccessKeyId</Code>
+                <Message>The OSS Access Key Id you provided does not exist in our records.</Message>
+                <RequestId>id-1234</RequestId>
+                <HostId>oss-cn-hangzhou.aliyuncs.com</HostId>
+                <OSSAccessKeyId>ak</OSSAccessKeyId>
+                <EC>0002-00000902</EC>
+                <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0002-00000902</RecommendDoc>
+            </Error>
+        ';
+
+        $response = new GuzzleHttp\Psr7\Response(status: 403, body: $body);
+        $mock = new GuzzleHttp\Handler\MockHandler([$response]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'bucket',
+            key: 'key0123/321/+?/123.txt'
+        );
+
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InvalidAccessKeyId', $se->getErrorCode());
+                $this->assertEquals('The OSS Access Key Id you provided does not exist in our records.', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+                $this->assertEquals('0002-00000902', $se->getEC());
+                $this->assertEquals('oss-cn-hangzhou.aliyuncs.com', $se->getErrorFiled('HostId'));
+                $this->assertEquals('ak', $se->getErrorFiled('OSSAccessKeyId'));
+                $this->assertEquals('https://api.aliyun.com/troubleshoot?q=0002-00000902', $se->getErrorFiled('RecommendDoc'));
+                $this->assertEquals($body, $se->getSnapshot());
+                $this->assertEquals('PUT https://bucket.oss-cn-beijing.aliyuncs.com/key0123/321/%2B%3F/123.txt', $se->getRequestTarget());
+            }
+        }
+
+        // invalid xml
+        $invalibody = 'Error>
+                <Code>InvalidAccessKeyId</Code>
+                <Message>The OSS Access Key Id you provided does not exist in our records.</Message>
+                <RequestId>id-1234</RequestId>
+                <HostId>oss-cn-hangzhou.aliyuncs.com</HostId>
+                <OSSAccessKeyId>ak</OSSAccessKeyId>
+                <EC>0002-00000902</EC>
+                <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0002-00000902</RecommendDoc>
+            </Error>
+        ';
+
+        $response = new GuzzleHttp\Psr7\Response(status: 403, body: $invalibody);
+        $mock->append($response);
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('BadErrorResponse', $se->getErrorCode());
+                $this->assertStringContainsString('Not found tag <Error>, part response body Error>', $se->getErrorMessage());
+                $this->assertEquals('', $se->getRequestId());
+                $this->assertEquals('', $se->getEC());
+                $this->assertEquals($invalibody, $se->getSnapshot());
+                $this->assertEquals('PUT https://bucket.oss-cn-beijing.aliyuncs.com/key0123/321/%2B%3F/123.txt', $se->getRequestTarget());
+                $this->assertEquals([], $se->getErrorFileds());
+                $this->assertEquals('', $se->getErrorFiled('123'));
+                $this->assertEquals(null, $se->getTimestamp());
+                $this->assertEquals([], $se->getHeaders());
+                $this->assertEquals('', $se->getHeader('123'));
+            }
+        }
+
+        // special char
+        $specialCharBody = '<?xml version="1.0" encoding="UTF-8"?>
+            <Error>
+                <Code>InvalidAccessKeyId</Code>
+                <Message>The OSS Access Key Id you provided does not exist in our records.</Message>
+                <RequestId>id-1234</RequestId>
+                <HostId>oss-cn-hangzhou.aliyuncs.com</HostId>
+                <OSSAccessKeyId>ak</OSSAccessKeyId>
+                <EC>0002-00000902</EC>
+                <SpecialChar>&#1;&#2;</SpecialChar>
+                <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0002-00000902</RecommendDoc>
+            </Error>
+        ';
+
+        $response = new GuzzleHttp\Psr7\Response(status: 403, body: $specialCharBody);
+        $mock->append($response);
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InvalidAccessKeyId', $se->getErrorCode());
+                $this->assertStringContainsString('The OSS Access Key Id you provided does not exist in our records.', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+                $this->assertEquals('0002-00000902', $se->getEC());
+                $this->assertEquals($specialCharBody, $se->getSnapshot());
+                $this->assertEquals('PUT https://bucket.oss-cn-beijing.aliyuncs.com/key0123/321/%2B%3F/123.txt', $se->getRequestTarget());
+                $this->assertEquals([], $se->getErrorFileds());
+                $this->assertEquals('', $se->getErrorFiled('123'));
+                $this->assertEquals(null, $se->getTimestamp());
+                $this->assertEquals([], $se->getHeaders());
+                $this->assertEquals('', $se->getHeader('123'));
+            }
+        }
+
+        // special char + not oss error format
+        $specialCharBody = '<?xml version="1.0" encoding="UTF-8"?>
+            <Error>
+                <Id>InvalidAccessKeyId</Id>
+                <Text>InvalidAccessKeyId</Text>
+                <SpecialChar>&#1;&#2;</SpecialChar>
+            </Error>
+        ';
+
+        $response = new GuzzleHttp\Psr7\Response(status: 403, body: $specialCharBody);
+        $mock->append($response);
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('BadErrorResponse', $se->getErrorCode());
+                $this->assertStringContainsString('Failed to parse xml from response body', $se->getErrorMessage());
+                $this->assertEquals('', $se->getRequestId());
+                $this->assertEquals('', $se->getEC());
+                $this->assertEquals($specialCharBody, $se->getSnapshot());
+                $this->assertEquals('PUT https://bucket.oss-cn-beijing.aliyuncs.com/key0123/321/%2B%3F/123.txt', $se->getRequestTarget());
+                $this->assertEquals([], $se->getErrorFileds());
+                $this->assertEquals('', $se->getErrorFiled('123'));
+                $this->assertEquals(null, $se->getTimestamp());
+                $this->assertEquals([], $se->getHeaders());
+                $this->assertEquals('', $se->getHeader('123'));
+            }
+        }
+    }
 }
