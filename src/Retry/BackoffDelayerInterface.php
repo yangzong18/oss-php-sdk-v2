@@ -13,5 +13,5 @@ interface BackoffDelayerInterface
      * @param \Throwable $reason the error meets
      * @return float delay duration in second.
      */    
-    public function backoffDelay(int $attempt, \Throwable $reason): float;
+    public function backoffDelay(int $attempt, ?\Throwable $reason): float;
 }

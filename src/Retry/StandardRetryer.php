@@ -57,7 +57,7 @@ class StandardRetryer implements RetryerInterface
         return $this->maxAttempts;
     }
 
-    public function retryDelay(int $attempt, \Throwable $reason): float
+    public function retryDelay(int $attempt, ?\Throwable $reason): float
     {
         return $this->backoffDelayer->backoffDelay($attempt, $reason);
     }

@@ -289,7 +289,7 @@ class DeserializerTest extends \PHPUnit\Framework\TestCase
             Deserializer::deserializeXml($str, $xml, 'MixedTypeList');
             $this->assertTrue(false, "shoud not here");
         } catch (DeserializationExecption $e) {
-            $this->assertStringContainsString("simplexml_load_string returns false", (string)$e);
+            $this->assertStringContainsString("Deserialization raised an exception: Error parsing XML: part data ", (string)$e);
         } catch (\Exception $e) {
             $this->assertTrue(false, "shoud not here");
         }

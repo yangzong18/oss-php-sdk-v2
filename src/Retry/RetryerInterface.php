@@ -11,5 +11,5 @@ interface RetryerInterface
 
     public function getMaxAttempts(): int;
 
-    public function retryDelay(int $attempt, \Throwable $reason): float;
+    public function retryDelay(int $attempt, ?\Throwable $reason): float;
 }

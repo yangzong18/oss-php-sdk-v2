@@ -16,7 +16,7 @@ class NopRetryer implements RetryerInterface
         return 1;
     }
 
-    public function retryDelay(int $attempt, \Throwable $reason): float
+    public function retryDelay(int $attempt, ?\Throwable $reason): float
     {
         throw new \Exception("NotImplemented");
     }

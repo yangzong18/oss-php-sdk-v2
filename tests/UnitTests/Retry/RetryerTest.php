@@ -7,6 +7,7 @@ use AlibabaCloud\Oss\V2\Defaults;
 use AlibabaCloud\Oss\V2\Exception;
 
 use GuzzleHttp;
+
 class RetryerTest extends \PHPUnit\Framework\TestCase
 {
     const ATTEMPTED_CELLING = 64;
@@ -47,6 +48,11 @@ class RetryerTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals(true, $r->isErrorRetryable(ErrorRetryableTest::genServiceCodeError('RequestTimeTooSkewed')));
         $this->assertEquals(true, $r->isErrorRetryable(ErrorRetryableTest::genServiceCodeError('BadRequest')));
 
+        $this->assertEquals(true, $r->isErrorRetryable(new Exception\ServiceException([
+            'status_code' => 403,
+            'code' => 'RequestTimeTooSkewed',
+        ])));
+
         $this->assertEquals(true, $r->isErrorRetryable(new Exception\CredentialsException('')));
         $this->assertEquals(true, $r->isErrorRetryable(new Exception\InconsistentExecption('1', '2')));
 
@@ -59,8 +65,12 @@ class RetryerTest extends \PHPUnit\Framework\TestCase
 
         for ($x = 0; $x <= self::ATTEMPTED_CELLING * 2; $x++) {
             $delay = $r->retryDelay($x, new \Exception());
-            $this->assertLessThan( Defaults::MAX_BACKOFF_S + 1, $delay);
+            $this->assertLessThan(Defaults::MAX_BACKOFF_S + 1, $delay);
             $this->assertGreaterThan(0, $delay);
         }
-    }    
+
+        $delay = $r->retryDelay($x, null);
+        $this->assertLessThan(Defaults::MAX_BACKOFF_S + 1, $delay);
+        $this->assertGreaterThan(0, $delay);
+    }
 }

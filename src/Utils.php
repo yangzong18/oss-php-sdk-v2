@@ -176,4 +176,25 @@ final class Utils
 
         return \substr($xml, $start + $len, $end - $start - $len);
     }
+
+    public static function parseXml(string $value): \SimpleXMLElement
+    {
+        $priorSetting = libxml_use_internal_errors(true);
+        try {
+            libxml_clear_errors();
+            $xml = new \SimpleXMLElement($value);
+            if ($error = libxml_get_last_error()) {
+                throw new \RuntimeException($error->message);
+            }
+        } catch (\Exception $e) {
+            throw new Exception\ParserException(
+                "Error parsing XML: {$e->getMessage()}",
+                $e,
+            );
+        } finally {
+            libxml_use_internal_errors($priorSetting);
+        }
+
+        return $xml;
+    }    
 }

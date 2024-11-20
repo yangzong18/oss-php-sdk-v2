@@ -19,6 +19,10 @@ class BackoffTest extends \PHPUnit\Framework\TestCase
             $this->assertLessThan( $maxdelay + 1, $delay);
             $this->assertGreaterThan(0, $delay);
         }
+
+        $delay = $r->backoffDelay($x, null);
+        $this->assertLessThan( $maxdelay + 1, $delay);
+        $this->assertGreaterThan(0, $delay);        
     }
 
     public function testFullJitterBackoff()
@@ -32,6 +36,10 @@ class BackoffTest extends \PHPUnit\Framework\TestCase
             $this->assertLessThan( $maxdelay + 1, $delay);
             $this->assertGreaterThan(0, $delay);
         }
+
+        $delay = $r->backoffDelay($x, null);
+        $this->assertLessThan( $maxdelay + 1, $delay);
+        $this->assertGreaterThan(0, $delay);
     }
 
     public function testFixedDelayBackoff()
@@ -43,5 +51,8 @@ class BackoffTest extends \PHPUnit\Framework\TestCase
             $delay = $r->backoffDelay($x, new \Exception());
             $this->assertEquals($maxdelay, $delay);
         }
+
+        $delay = $r->backoffDelay($x, null);
+        $this->assertEquals($maxdelay, $delay);
     }    
 }

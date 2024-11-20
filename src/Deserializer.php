@@ -16,10 +16,11 @@ final class Deserializer
 {
     public static function deserializeXml(string $value, mixed $className, string $expect = ''): Model
     {
-        $xml = simplexml_load_string($value);
-
-        if (false === $xml) {
-            throw new DeserializationExecption('simplexml_load_string returns false');
+        try {
+            $xml = Utils::parseXml($value);
+        } catch (\Exception $e) {
+            throw new DeserializationExecption(
+                'Error parsing XML: part data ' . substr($value, 0, 256), $e);
         }
 
         //check expect root name

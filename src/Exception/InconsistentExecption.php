@@ -11,6 +11,6 @@ class InconsistentExecption extends \RuntimeException
 {
     public function __construct(string $crc1, string $crc2)
     {
-        parent::__construct('crc is inconsistent, client ' . $$crc1 . ', server'. $$crc2);
+        parent::__construct('crc is inconsistent, client ' . $crc1 . ', server'. $crc2);
     }
 }

@@ -2,6 +2,9 @@
 
 namespace UnitTests;
 
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'NoRewindStream.php';
+
+
 use AlibabaCloud\Oss\V2\Config;
 use AlibabaCloud\Oss\V2\OperationInput;
 use AlibabaCloud\Oss\V2\Signer;
@@ -12,6 +15,8 @@ use AlibabaCloud\Oss\V2\ClientImpl;
 use AlibabaCloud\Oss\V2\Defaults;
 use AlibabaCloud\Oss\V2\Exception;
 use GuzzleHttp;
+use UnitTests\Fixtures\NoRewindStream;
+
 
 class ClientImplTest extends \PHPUnit\Framework\TestCase
 {
@@ -491,7 +496,7 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
         $ro = new \ReflectionObject($client);
         $pRequestOptions = $ro->getProperty('requestOptions');
         $requestOptions = $pRequestOptions->getValue($client);
-        $this->assertEquals(null, $requestOptions['proxy']);
+        $this->assertEquals(false, isset($requestOptions['proxy']));
 
         // set from config
         $cfg = Config::loadDefault();
@@ -965,5 +970,182 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
                 $this->assertEquals('', $se->getHeader('123'));
             }
         }
+    }
+
+    public function testRetryMiddleware(): void
+    {
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+
+        $body = '<?xml version="1.0" encoding="UTF-8"?>
+            <Error>
+                <Code>InternalError</Code>
+                <Message>Please contact the server administrator, oss@service.aliyun.com</Message>
+                <RequestId>id-1234</RequestId>
+                <HostId>oss-cn-hangzhou.aliyuncs.com</HostId>
+                <EC>0002-00000902</EC>
+            </Error>
+        ';
+
+        $mock = new GuzzleHttp\Handler\MockHandler();
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'bucket',
+            key: 'key0123/321/+?/123.txt'
+        );
+
+        // default retry count is 3
+        $mock->reset();
+        for ($x = 0; $x < Defaults::MAX_ATTEMPTS; $x++) {
+            $mock->append(new GuzzleHttp\Psr7\Response(status: 500, body: $body));
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $mock->count());
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InternalError', $se->getErrorCode());
+                $this->assertStringContainsString('Please contact the server administrator, oss@service.aliyun.com', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+            }
+        }
+        $this->assertEquals(0, $mock->count());
+
+        // set from api
+        $mock->reset();
+        for ($x = 0; $x < Defaults::MAX_ATTEMPTS; $x++) {
+            $mock->append(new GuzzleHttp\Psr7\Response(status: 500, body: $body));
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $mock->count());
+        try {
+            $opt = ['retry_max_attempts' => 2,];
+            $client->executeAsync($input, $opt)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InternalError', $se->getErrorCode());
+                $this->assertStringContainsString('Please contact the server administrator, oss@service.aliyun.com', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+            }
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS - 2, $mock->count());
+
+        // no retry
+        $mock->reset();
+        for ($x = 0; $x < Defaults::MAX_ATTEMPTS; $x++) {
+            $mock->append(new GuzzleHttp\Psr7\Response(status: 500, body: $body));
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $mock->count());
+        try {
+            $opt = ['retryer' => new Retry\NopRetryer()];
+            $client->executeAsync($input, $opt)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InternalError', $se->getErrorCode());
+                $this->assertStringContainsString('Please contact the server administrator, oss@service.aliyun.com', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+            }
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS - 1, $mock->count());
+
+        // no seekable stream
+        $mock->reset();
+        for ($x = 0; $x < Defaults::MAX_ATTEMPTS; $x++) {
+            $mock->append(new GuzzleHttp\Psr7\Response(status: 500, body: $body));
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $mock->count());
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'bucket',
+            key: 'key0123/321/+?/123.txt',
+            body: new GuzzleHttp\Psr7\NoSeekStream(Utils::streamFor('hello world')),
+        );
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InternalError', $se->getErrorCode());
+                $this->assertStringContainsString('Please contact the server administrator, oss@service.aliyun.com', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+            }
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS - 1, $mock->count());
+
+        // No retryable error
+        $mock->reset();
+        for ($x = 0; $x < Defaults::MAX_ATTEMPTS; $x++) {
+            $mock->append(new GuzzleHttp\Psr7\Response(status: 403, body: $body));
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $mock->count());
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'bucket',
+            key: 'key0123/321/+?/123.txt',
+            body: new GuzzleHttp\Psr7\NoSeekStream(Utils::streamFor('hello world')),
+        );
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InternalError', $se->getErrorCode());
+                $this->assertStringContainsString('Please contact the server administrator, oss@service.aliyun.com', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+            }
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS - 1, $mock->count());
+
+        // No rewind stream error
+        $mock->reset();
+        for ($x = 0; $x < Defaults::MAX_ATTEMPTS; $x++) {
+            $mock->append(new GuzzleHttp\Psr7\Response(status: 500, body: $body));
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $mock->count());
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'bucket',
+            key: 'key0123/321/+?/123.txt',
+            body: new NoRewindStream(Utils::streamFor('hello world')),
+        );
+        try {
+            $client->executeAsync($input)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\StreamRewindException::class, $e->getPrevious());
+            $this->assertStringContainsString('Cannot rewind a NoRewindStream', $e->getPrevious()->getMessage());
+            $this->assertInstanceOf(Exception\ServiceException::class, $e->getPrevious()->getPrevious());
+            $se = $e->getPrevious()->getPrevious();
+            if ($se instanceof Exception\ServiceException) {
+                $this->assertEquals('InternalError', $se->getErrorCode());
+                $this->assertStringContainsString('Please contact the server administrator, oss@service.aliyun.com', $se->getErrorMessage());
+                $this->assertEquals('id-1234', $se->getRequestId());
+            }
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS - 1, $mock->count());
     }
 }

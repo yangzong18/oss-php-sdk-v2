@@ -209,7 +209,7 @@ final class ClientImpl
         $this->innerOptions = array_replace($this->innerOptions, $opt);
 
         // Guzzle's request options
-        $src = $options['request_options'];
+        $src = $options['request_options'] ?? [];
         if (!empty($src)) {
             $allows = [
                 'allow_redirects',
@@ -266,7 +266,11 @@ final class ClientImpl
                 }
 
                 // reset state
-                $request->getBody()->rewind();
+                try {
+                    $request->getBody()->rewind();
+                } catch (\Exception $e) {
+                    throw new Exception\StreamRewindException($e->getMessage(), $reason);
+                }
                 if ($options['sdk_context']['reset_time']) {
                     $options['signing_context']->time = null;
                 }
@@ -415,7 +419,7 @@ final class ClientImpl
 
         // retry options for api
         $retryer = $options['retryer'] ?? $this->sdkOptions['retryer'];
-        if (Utils::safetyInt($options['retry_max_attempts']) > 0) {
+        if (Utils::safetyInt($options['retry_max_attempts'] ?? 0) > 0) {
             $retry_max_attempts = $options['retry_max_attempts'];
         } else if (isset($this->sdkOptions['retry_max_attempts'])) {
             $retry_max_attempts = $this->sdkOptions['retry_max_attempts'];
@@ -502,8 +506,16 @@ final class ClientImpl
         }
 
         if (str_contains($xmlStr, '<Error>')) {
-            $xml = simplexml_load_string($xmlStr);
-            if (false === $xml) {
+            try {
+                $xml = Utils::parseXml($xmlStr);
+                $code = $xml->Code ?? $code;
+                $message = $xml->Message ?? '';
+                $ec = $xml->EC ?? '';
+                $requestId = $xml->RequestId ?? '';
+                foreach ($xml as $key => $val) {
+                    $errorFileds[$key] = (string)$val;
+                }
+            } catch (\Exception $e) {
                 //maybe contains speical char, from 0x1 - 0x1F
                 //find <Code>...</Code> <Message>...</Message> <RequestId>...</RequestId> <EC>...</EC>
                 $value = Utils::findXmlElementText($xmlStr, 'Code');
@@ -514,14 +526,6 @@ final class ClientImpl
                     $ec = Utils::findXmlElementText($xmlStr, 'EC');
                 } else {
                     $message = 'Failed to parse xml from response body, part response body ' . substr($xmlStr, 0, 256);
-                }
-            } else {
-                $code = $xml->Code ?? $code;
-                $message = $xml->Message ?? '';
-                $ec = $xml->EC ?? '';
-                $requestId = $xml->RequestId ?? '';
-                foreach ($xml as $key => $val) {
-                    $errorFileds[$key] = (string)$val;
                 }
             }
         } else {

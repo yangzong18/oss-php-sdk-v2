@@ -33,7 +33,7 @@ final class EqualJitterBackoff implements BackoffDelayerInterface
         $this->attemptCelling = intval(log(PHP_FLOAT_MAX / $baseDelay, 2)); 
     }
 
-    public function backoffDelay(int $attempt, \Throwable $reason): float
+    public function backoffDelay(int $attempt, ?\Throwable $reason): float
     {
         $attempt = min($attempt, $this->attemptCelling);
 

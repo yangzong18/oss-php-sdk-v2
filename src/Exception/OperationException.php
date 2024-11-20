@@ -11,7 +11,7 @@ class OperationException extends \RuntimeException
 {
     public function __construct(
         string $name,
-        \Exception $previous = null
+        \Throwable $previous = null
     ) {
         $message = 'Operation error ' . $name;
         if ($previous !== null) {

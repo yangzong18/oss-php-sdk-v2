@@ -9,8 +9,8 @@ namespace AlibabaCloud\Oss\V2\Exception;
  */
 class DeserializationExecption extends \RuntimeException
 {
-    public function __construct(string $messge)
+    public function __construct(string $messge, $previous = null)
     {
-        parent::__construct('Deserialization raised an exception: ' . $messge);
+        parent::__construct('Deserialization raised an exception: ' . $messge, 0, $previous);
     }
 }
