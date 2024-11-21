@@ -3,10 +3,12 @@
 namespace UnitTests;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'NoRewindStream.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'Fixtures' . DIRECTORY_SEPARATOR . 'RewindStatStream.php';
 
 
 use AlibabaCloud\Oss\V2\Config;
 use AlibabaCloud\Oss\V2\OperationInput;
+use AlibabaCloud\Oss\V2\OperationOutput;
 use AlibabaCloud\Oss\V2\Signer;
 use AlibabaCloud\Oss\V2\Retry;
 use AlibabaCloud\Oss\V2\Credentials;
@@ -16,6 +18,7 @@ use AlibabaCloud\Oss\V2\Defaults;
 use AlibabaCloud\Oss\V2\Exception;
 use GuzzleHttp;
 use UnitTests\Fixtures\NoRewindStream;
+use UnitTests\Fixtures\RewindStatStream;
 
 
 class ClientImplTest extends \PHPUnit\Framework\TestCase
@@ -1230,5 +1233,34 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
             }
         }
         $this->assertEquals(0, $mock->count());
+
+        // rewind check, set retry count 3, 500 error, crc error, normal
+        $mock->reset();
+        $mock->append(new GuzzleHttp\Psr7\Response(status: 500, headers: ['x-oss-request-id' => 'id-1']));
+        $mock->append(new GuzzleHttp\Psr7\Response(status: 200, headers: ['x-oss-request-id' => 'id-2', 'x-oss-crc-fail' => 'true']));
+        $mock->append(new GuzzleHttp\Psr7\Response(status: 200, headers: ['x-oss-request-id' => 'id-3']));
+        $this->assertEquals(3, $mock->count());
+        $body = new RewindStatStream(Utils::streamFor('hello world'));
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'bucket',
+            key: 'key0123/321/+?/123.txt',
+            body: $body,
+        );
+        $opt = [
+            'response_handlers' => [
+                static function ($request, \Psr\Http\Message\ResponseInterface $response, $options) {
+                    if ($response->hasHeader('x-oss-crc-fail')) {
+                        throw new Exception\InconsistentExecption('1', '2', $response);
+                    }
+                },
+            ],
+            'retry_max_attempts' => 3,
+        ];
+        $output = $client->executeAsync($input, $opt)->wait();
+        $this->assertInstanceOf(OperationOutput::class, $output);
+        $this->assertEquals(0, $mock->count());
+        $this->assertEquals(2, $body->getRewindCount());
     }
 }

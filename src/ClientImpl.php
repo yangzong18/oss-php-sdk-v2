@@ -418,6 +418,9 @@ final class ClientImpl
         if (isset($options['timeout'])) {
             $context['timeout'] =  $options['timeout'];
         }
+        if (isset($options['sink'])) {
+            $context['sink'] =  $options['sink'];
+        }
 
         // retry options for api
         $retryer = $options['retryer'] ?? $this->sdkOptions['retryer'];
