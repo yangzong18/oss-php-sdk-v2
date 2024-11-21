@@ -27,9 +27,9 @@ final class Deserializer
         if (
             !empty($xml) &&
             !empty($expect) &&
-            !str_contains($value, '<' . $expect . '>')
+            !str_contains($value, "<$expect>")
         ) {
-            throw new DeserializationExecption('Not found tag <' . $expect . '>');
+            throw new DeserializationExecption("Not found tag <$expect>");
         }
 
         return self::deserializeXmlModel($xml, $className);
@@ -146,7 +146,7 @@ final class Deserializer
                 $vv = self::castToDatetime($value, $format);
                 break;
             default:
-                throw new DeserializationExecption('Unsupport type:' . $type);
+                throw new DeserializationExecption("Unsupport type:$type");
         }
         return $vv;
     }
@@ -275,7 +275,7 @@ final class Deserializer
                 $value = self::deserializeXml($content, $annotation->type, $annotation->rename);
                 $property->setValue($result, $value);
             } else {
-                throw new DeserializationExecption('Unsupport body format:' . $annotation->format);
+                throw new DeserializationExecption("Unsupport body format:$annotation->format");
             }
 
             // only one body tag

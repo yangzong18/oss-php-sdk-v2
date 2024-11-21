@@ -275,6 +275,18 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
         $pSdkOptions = $ro->getProperty('sdkOptions');
         $sdkOptions = $pSdkOptions->getValue($client);
         $this->assertEquals('cname', $sdkOptions['address_style']);
+
+        //use ip endpoint 
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setEndpoint('192.168.1.1');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+
+        $client = new ClientImpl($cfg);
+        $ro = new \ReflectionObject($client);
+        $pSdkOptions = $ro->getProperty('sdkOptions');
+        $sdkOptions = $pSdkOptions->getValue($client);
+        $this->assertEquals('path', $sdkOptions['address_style']);
     }
 
     public function testConfigRetryer()
@@ -781,6 +793,45 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
         $request = $mock->getLastRequest();
         $this->assertEquals('https://oss-cn-beijing.aliyuncs.com/my-bucket/123/321/%2B%3F%20/123.txt', $request->getUri()->__tostring());
 
+        # ip format, no bucket and key, only bucket,  bucket and key
+        $cfg = Config::loadDefault();
+        $cfg->setRegion('cn-beijing');
+        $cfg->setEndpoint('192.168.1.1:3218');
+        $cfg->setCredentialsProvider(new Credentials\AnonymousCredentialsProvider());
+        $cfg->setUsePathStyle(true);
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://192.168.1.1:3218/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://192.168.1.1:3218/my-bucket/', $request->getUri()->__tostring());
+
+        $mock = new GuzzleHttp\Handler\MockHandler([new GuzzleHttp\Psr7\Response()]);
+        $client = new ClientImpl($cfg, ['handler' => $mock]);
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'my-bucket',
+            key: '123/321/+? /123.txt'
+        );
+        $client->executeAsync($input)->wait();
+        $request = $mock->getLastRequest();
+        $this->assertEquals('https://192.168.1.1:3218/my-bucket/123/321/%2B%3F%20/123.txt', $request->getUri()->__tostring());
+
         // uri format after signing
         # signing header, bucket and key
         $cfg = Config::loadDefault();
@@ -1147,5 +1198,37 @@ class ClientImplTest extends \PHPUnit\Framework\TestCase
             }
         }
         $this->assertEquals(Defaults::MAX_ATTEMPTS - 1, $mock->count());
+
+        // InconsistentExecption Error
+        $mock->reset();
+        for ($x = 0; $x < Defaults::MAX_ATTEMPTS; $x++) {
+            $mock->append(new GuzzleHttp\Psr7\Response(status: 200, headers: ['x-oss-request-id' => 'id-1234']));
+        }
+        $this->assertEquals(Defaults::MAX_ATTEMPTS, $mock->count());
+        $input = new OperationInput(
+            opName: "TestApi",
+            method: "PUT",
+            bucket: 'bucket',
+            key: 'key0123/321/+?/123.txt',
+        );
+        try {
+            $opt = [
+                'response_handlers' => [
+                    static function ($request, $response, $options) {
+                        throw new Exception\InconsistentExecption('1', '2', $response);
+                    },
+                ],
+            ];
+            $client->executeAsync($input, $opt)->wait();
+            $this->assertTrue(false, 'should not here');
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(Exception\OperationException::class, $e);
+            $this->assertInstanceOf(Exception\InconsistentExecption::class, $e->getPrevious());
+            $se = $e->getPrevious();
+            if ($se instanceof Exception\InconsistentExecption) {
+                $this->assertEquals('crc is inconsistent, client crc: 1, server crc: 2, request id: id-1234', $se->getMessage());
+            }
+        }
+        $this->assertEquals(0, $mock->count());
     }
 }

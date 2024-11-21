@@ -18,7 +18,6 @@ final class NoRewindStream implements \Psr\Http\Message\StreamInterface
 
     public function rewind(): void
     {
-        print("rewind\n");
         throw new \RuntimeException('Cannot rewind a NoRewindStream');
     }
 }

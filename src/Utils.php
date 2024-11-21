@@ -78,7 +78,7 @@ final class Utils
             if ($disableSsl === true) {
                 $scheme = 'http';
             }
-            $endpoint = $scheme . '://' . $endpoint;
+            $endpoint = "$scheme://$endpoint";
         }
         return $endpoint;
     }
@@ -92,10 +92,10 @@ final class Utils
 
         switch ($type) {
             case 'internal';
-                $endpoint = 'oss-' . $region . '-internal.aliyuncs.com';
+                $endpoint = "oss-$region-internal.aliyuncs.com";
                 break;
             case 'dualstack';
-                $endpoint = $region . '.oss.aliyuncs.com';
+                $endpoint = "$region.oss.aliyuncs.com";
                 break;
             case 'accelerate';
                 $endpoint = 'oss-accelerate.aliyuncs.com';
@@ -103,11 +103,11 @@ final class Utils
             case 'overseas';
                 $endpoint = 'oss-accelerate-overseas.aliyuncs.com';
             default:
-                $endpoint = 'oss-' . $region . '.aliyuncs.com';
+                $endpoint = "oss-$region.aliyuncs.com";
                 break;
         }
 
-        return $scheme . '://' . $endpoint;
+        return "$scheme://$endpoint";
     }
 
     public static function defaultUserAgent(): string

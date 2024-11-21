@@ -153,6 +153,12 @@ final class ClientImpl
         } else {
             $options['address_style'] = 'virtual';
         }
+
+        if ($options['endpoint'] instanceof GuzzleHttp\Psr7\Uri) {
+            if (Utils::isIPFormat($options['endpoint']->getHost())) {
+                $options['address_style'] = 'path';
+            }
+        }
     }
 
     private function resolveFeatureFlags(Config &$config, array &$options) {}
@@ -352,13 +358,9 @@ final class ClientImpl
         return $value;
     }
 
-    private function buildUri(OperationInput &$input): \Psr\Http\Message\UriInterface
+    private function buildUri(OperationInput &$input, \Psr\Http\Message\UriInterface $uri): \Psr\Http\Message\UriInterface
     {
         $paths = [];
-        $uri = new GuzzleHttp\Psr7\Uri(
-            $this->sdkOptions['endpoint']->getScheme() . "://" . $this->sdkOptions['endpoint']->getAuthority()
-        );
-
         if ($input->getBucket() != null) {
             switch ($this->sdkOptions['address_style']) {
                 case 'path':
@@ -440,7 +442,8 @@ final class ClientImpl
 
         // Requst
         // host & path & query
-        $uri = $this->buildUri($input);
+        $baseuri = $this->sdkOptions['endpoint']->getScheme() . "://" . $this->sdkOptions['endpoint']->getAuthority();
+        $uri = $this->buildUri($input, new GuzzleHttp\Psr7\Uri($baseuri));
         $query = $input->getParameters();
         if (!empty($query)) {
             $uri = $uri->withQuery(
@@ -478,6 +481,12 @@ final class ClientImpl
         $responseHandlers = [
             [ClientImpl::class, 'httpErrors'],
         ];
+
+        if (isset($options['response_handlers'])) {
+            foreach ($options['response_handlers'] as $h) {
+                \array_push($responseHandlers, $h);
+            }
+        }
 
         $context['response_handlers'] = $responseHandlers;
 
